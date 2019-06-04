@@ -7,5 +7,5 @@ Group members:
 
 The project is about speech recognition and we won't to try different method like:
 - CNN/RNN 
-- Encoder/Decodere (Sequence2Sequence)
+- Encoder/Decoder (Sequence2Sequence)
 - Attention 
