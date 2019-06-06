@@ -3,7 +3,7 @@ import tensorflow as tf
 from tensorflow import keras
 
 from tensorflow.keras.layers import Input, Activation, Concatenate, Permute, Reshape, Flatten, Lambda, Dot, Softmax
-from tensorflow.keras.layers import Add, Dropout, BatchNormalization, Conv2D, Reshape, MaxPooling2D, Dense, Bidirectional#, Attention, CuDNNLSTM
+from tensorflow.keras.layers import Add, Dropout, BatchNormalization, Conv2D, Reshape, MaxPooling2D, Dense, Bidirectional, LSTM#, Attention, CuDNNLSTM
 from tensorflow.keras import backend as K
 from tensorflow.keras.utils import to_categorical
 from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint, LearningRateScheduler
@@ -19,8 +19,13 @@ from kapre.utils import Normalization2D
 # Model with the attention layer 
 def AttentionModel(nCategories, samplingrate = 16000, inputLength = 16000):
     
-    inputs = Input((samplingrate,))
+    inputs = Input((80, 125, 1)) # it's the dimension after the extraction of the mel coeficient
 
+    #inputs = Input((samplingrate,))
+
+    """ We need to drop out this part and compute by hand the mel coefficient
+        because this part user keras without tensorflow and there is a bug that
+        create problem 
     x = Reshape((1, -1)) (inputs)
 
     x = Melspectrogram(n_dft=1024, n_hop=128, input_shape=(1, inputLength),
@@ -34,8 +39,8 @@ def AttentionModel(nCategories, samplingrate = 16000, inputLength = 16000):
 
     #note that Melspectrogram puts the sequence in shape (batch_size, melDim, timeSteps, 1)
     #we would rather have it the other way around for LSTMs
-
-    x = Permute((2,1,3)) (x)
+    """
+    x = Permute((2,1,3)) (inputs)
 
     x = Conv2D(10, (5,1) , activation='relu', padding='same') (x)
     x = BatchNormalization() (x)
@@ -71,16 +76,23 @@ def AttentionModel(nCategories, samplingrate = 16000, inputLength = 16000):
     x = Dense(32)(x)
 
     output = Dense(nCategories, activation = 'softmax', name='output')(x)
-
-    model = Model(inputs=[inputs], outputs=[output])
+    
+    model = tf.keras.Model(inputs=[inputs], outputs=[x])
     
     return model
 
-# Model CNN/RNN Encoder Decoder
-def Seq2SeqModel(nCategories, samplingrate = 16000, inputLength = 16000):
-    
-    inputs = Input((samplingrate,))
 
+# Model CNN/RNN Encoder-Decoder
+def Seq2SeqModel(nCategories, samplingrate = 16000, inputLength = 16000):
+
+    #Encoder 
+    encoderInputs = Input((80, 125, 1)) # it's the dimension after the extraction of the mel coeficient
+
+    #inputs = Input((samplingrate,))
+
+    """ We need to drop out this part and compute by hand the mel coefficient
+        because this part user keras without tensorflow and there is a bug that
+        create problem 
     x = Reshape((1, -1)) (inputs)
 
     x = Melspectrogram(n_dft=1024, n_hop=128, input_shape=(1, inputLength),
@@ -94,6 +106,44 @@ def Seq2SeqModel(nCategories, samplingrate = 16000, inputLength = 16000):
 
     #note that Melspectrogram puts the sequence in shape (batch_size, melDim, timeSteps, 1)
     #we would rather have it the other way around for LSTMs
+    """
+    encoder = Permute((2,1,3)) (encoderInputs)
 
-    x = Permute((2,1,3)) (x)
+    encoder = Conv2D(10, (5,1) , activation='relu', padding='same') (encoder)
+    encoder = BatchNormalization() (encoder)
+    encoder = Conv2D(1, (5,1) , activation='relu', padding='same') (encoder)
+    encoder = BatchNormalization() (encoder)
+
+    #encoder = Reshape((125, 80)) (encoder)
+    encoder = Lambda(lambda q: K.squeeze(q, -1), name='squeeze_last_dim') (encoder) #keras.backend.squeeze(encoder, axis)
+
+    """ If we have GPU
+    x = Bidirectional(CuDNNLSTM(64, return_sequences = True)) (x) # [b_s, seq_len, vec_dim]
+    x = Bidirectional(CuDNNLSTM(64, return_sequences = True)) (x) # [b_s, seq_len, vec_dim]
+    """
+
+    encoder = Bidirectional(LSTM(64, return_sequences = True)) (encoder) # [b_s, seq_len, vec_dim]
+    encoder = Bidirectional(LSTM(64, return_sequences = True)) (encoder) # [b_s, seq_len, vec_dim]
+
+    # We can add a Dense layer to compress more the signal 
+    encoder = Dense(64, activation = 'relu')(encoder)
     
+    encoderModel = tf.keras.Model(inputs=[encoderInputs], outputs=[encoder])
+
+    # Decoder 
+    #decoderInput = Input((64, 1))
+
+    decoder = Bidirectional(LSTM(64, return_sequences = True)) (encoder) # [b_s, seq_len, vec_dim]
+    decoder = Bidirectional(LSTM(64, return_sequences = True)) (decoder) # [b_s, seq_len, vec_dim]
+
+    #decoderModel = tf.keras.Model(inputs=[decoderInput], outputs=[decoder])
+    
+    autoencoder = tf.keras.Model(inputs=[encoderInputs], outputs=[decoder])
+
+    return autoencoder
+
+AttModel = AttentionModel(12)
+AttModel.summary()
+
+Autoencoder = Seq2SeqModel(12)
+Autoencoder.summary()
