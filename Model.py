@@ -3,7 +3,7 @@ import tensorflow as tf
 from tensorflow import keras
 
 from tensorflow.keras.layers import Input, Activation, Concatenate, Permute, Reshape, Flatten, Lambda, Dot, Softmax
-from tensorflow.keras.layers import Add, Dropout, BatchNormalization, Conv2D, Reshape, MaxPooling2D, Dense, Bidirectional, LSTM#, Attention, CuDNNLSTM
+from tensorflow.keras.layers import Add, Dropout, BatchNormalization, Conv2D, Conv2DTranspose, Reshape, MaxPooling2D, Dense, Bidirectional, LSTM#, Attention, CuDNNLSTM
 from tensorflow.keras import backend as K
 from tensorflow.keras.utils import to_categorical
 from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint, LearningRateScheduler
@@ -136,6 +136,15 @@ def Seq2SeqModel(nCategories, samplingrate = 16000, inputLength = 16000):
     decoder = Bidirectional(LSTM(64, return_sequences = True)) (encoder) # [b_s, seq_len, vec_dim]
     decoder = Bidirectional(LSTM(64, return_sequences = True)) (decoder) # [b_s, seq_len, vec_dim]
 
+    decoder = Dense((125, 80), activation = 'relu') (decoder)
+
+    decoder = Lambda(lambda q: tf.expand_dims(q, -1), name='add_dim') (decoder) # Add a dimension 
+    
+    decoder = Conv2DTranspose(10, (5,1) , activation='relu', padding='same') (decoder)
+    decoder = BatchNormalization() (decoder)
+    decoder = Conv2DTranspose(1, (5,1) , activation='relu', padding='same') (decoder)
+    decoder = BatchNormalization() (decoder)
+    
     #decoderModel = tf.keras.Model(inputs=[decoderInput], outputs=[decoder])
     
     autoencoder = tf.keras.Model(inputs=[encoderInputs], outputs=[decoder])
