@@ -122,21 +122,21 @@ def Seq2SeqModel(nCategories, samplingrate = 16000, inputLength = 16000):
     x = Bidirectional(CuDNNLSTM(64, return_sequences = True)) (x) # [b_s, seq_len, vec_dim]
     """
 
-    encoder = Bidirectional(LSTM(64, return_sequences = True)) (encoder) # [b_s, seq_len, vec_dim]
-    encoder = Bidirectional(LSTM(64, return_sequences = True)) (encoder) # [b_s, seq_len, vec_dim]
+    encoder = (LSTM(64, return_sequences = False, return_state = True)) (encoder) # [b_s, seq_len, vec_dim]
+    #encoder = Bidirectional(LSTM(64, return_sequences = False, return_state = True)) (encoder) # [b_s, seq_len, vec_dim]
 
     # We can add a Dense layer to compress more the signal 
-    encoder = Dense(64, activation = 'relu')(encoder)
+    #encoder = Dense(6, activation = 'relu')(encoder)
     
     encoderModel = tf.keras.Model(inputs=[encoderInputs], outputs=[encoder])
 
     # Decoder 
     #decoderInput = Input((64, 1))
+    """
+    decoder = Bidirectional(LSTM(64, return_sequences = False)) (encoder) # [b_s, seq_len, vec_dim]
+    decoder = Bidirectional(LSTM(64, return_sequences = False)) (decoder) # [b_s, seq_len, vec_dim]
 
-    decoder = Bidirectional(LSTM(64, return_sequences = True)) (encoder) # [b_s, seq_len, vec_dim]
-    decoder = Bidirectional(LSTM(64, return_sequences = True)) (decoder) # [b_s, seq_len, vec_dim]
-
-    decoder = Dense((125, 80), activation = 'relu') (decoder)
+    #decoder = Dense((125, 80), activation = 'relu') (decoder)
 
     decoder = Lambda(lambda q: tf.expand_dims(q, -1), name='add_dim') (decoder) # Add a dimension 
     
@@ -148,11 +148,11 @@ def Seq2SeqModel(nCategories, samplingrate = 16000, inputLength = 16000):
     #decoderModel = tf.keras.Model(inputs=[decoderInput], outputs=[decoder])
     
     autoencoder = tf.keras.Model(inputs=[encoderInputs], outputs=[decoder])
+    """
+    return encoderModel
 
-    return autoencoder
-
-AttModel = AttentionModel(12)
-AttModel.summary()
+#AttModel = AttentionModel(12)
+#AttModel.summary()
 
 Autoencoder = Seq2SeqModel(12)
 Autoencoder.summary()
