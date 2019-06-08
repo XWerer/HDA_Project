@@ -3,7 +3,8 @@ import tensorflow as tf
 from tensorflow import keras
 
 from tensorflow.keras.layers import Input, Activation, Concatenate, Permute, Reshape, Flatten, Lambda, Dot, Softmax
-from tensorflow.keras.layers import Add, Dropout, BatchNormalization, Conv2D, Conv2DTranspose, Reshape, MaxPooling2D, Dense, Bidirectional, LSTM#, Attention, CuDNNLSTM
+from tensorflow.keras.layers import Add, Dropout, BatchNormalization, Conv2D, Conv2DTranspose, Reshape, MaxPooling2D, Dense, Bidirectional, LSTM
+#from tensorflow.keras.layers import Attention, CuDNNLSTM
 from tensorflow.keras import backend as K
 from tensorflow.keras.utils import to_categorical
 from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint, LearningRateScheduler
@@ -42,6 +43,7 @@ def AttentionModel(nCategories, samplingrate = 16000, inputLength = 16000):
     """
     x = Permute((2,1,3)) (inputs)
 
+    # Two 2D convolutional layer to extrac features  
     x = Conv2D(10, (5,1) , activation='relu', padding='same') (x)
     x = BatchNormalization() (x)
     x = Conv2D(1, (5,1) , activation='relu', padding='same') (x)
@@ -54,7 +56,7 @@ def AttentionModel(nCategories, samplingrate = 16000, inputLength = 16000):
     x = Bidirectional(CuDNNLSTM(64, return_sequences = True)) (x) # [b_s, seq_len, vec_dim]
     x = Bidirectional(CuDNNLSTM(64, return_sequences = True)) (x) # [b_s, seq_len, vec_dim]
     """
-
+    # Two bidirectional LSTM layer were the output is the complete sequence 
     x = Bidirectional(LSTM(64, return_sequences = True)) (x) # [b_s, seq_len, vec_dim]
     x = Bidirectional(LSTM(64, return_sequences = True)) (x) # [b_s, seq_len, vec_dim]
     
@@ -72,6 +74,7 @@ def AttentionModel(nCategories, samplingrate = 16000, inputLength = 16000):
     # Now use the Attention layer (not find when compile, i don't know why)
     # attVector = Attention()([query, x])
 
+    # Two dense layer 
     x = Dense(64, activation = 'relu')(attVector)
     x = Dense(32)(x)
 
@@ -81,34 +84,55 @@ def AttentionModel(nCategories, samplingrate = 16000, inputLength = 16000):
     
     return model
 
+# LSTM Autoencoder 
+def LSTMAutoencoder(nCategories, samplingrate = 16000, inputLength = 16000):
+    # Encoder part
+    # Input layer 
+    encoderInputs = Input((125, 80)) # it's the dimension after the extraction of the mel coeficient
+    
+    # First bidirectional layer that return only the full sequence that is the input of the next bidirectiona lstm layer
+    encoder = Bidirectional(LSTM(64, return_sequences = True, return_state = False)) (encoderInputs) # [b_s, seq_len, vec_dim]
+    # Second bidirectional LSTM layer. This layer return the state of the bidirectional lstm. 
+    # The output is a 5 tensor:
+    #   - lstm: last output of the sequence [b_s, vec_dim]
+    #   - forward_h: the last forward state h [b_s, 64]
+    #   - forward_c: the last forward state c [b_s, 64]
+    #   - backward_h: the last backward state h [b_s, 64]
+    #   - backward_c: the last backward state c [b_s, 64]
+    lstm, forward_h, forward_c, backward_h, backward_c = Bidirectional(LSTM(64, return_sequences = False, return_state = True)) (encoder) 
+
+    # We discard `encoder_outputs` and only keep the states.
+    #encoder_states = [state_h, state_c]
+    encoder_states = [forward_h, forward_c, backward_h, backward_c]
+
+    # Decoder Part (only one bidirectional lstm and a dense layer)
+    # Set up the decoder, using `encoder_states` as initial state.
+    #decoder_inputs = Input(shape = (None, 64))
+    decoderInputs = Input((125, 80))
+
+    # We set up our decoder to return full output sequences,
+    # and to return internal states as well. We don't use the 
+    # return states in the training model, but we will use them in inference.
+    decoder_lstm = Bidirectional(LSTM(64, return_sequences = True, return_state = True))
+    decoderOutputs, _, _, _, _ = decoder_lstm(decoderInputs, initial_state = encoder_states)
+    decoderDense = Dense(80, activation='relu')
+    decoderOutputs = decoderDense(decoderOutputs)
+
+    # Define the model that will turn
+    # `encoder_input_data` & `decoder_input_data` into `decoder_target_data`
+    model = tf.keras.Model([encoderInputs, decoderInputs], decoderOutputs)
+
+    return model
 
 # Model CNN/RNN Encoder-Decoder
 def Seq2SeqModel(nCategories, samplingrate = 16000, inputLength = 16000):
-
     #Encoder 
+
     encoderInputs = Input((80, 125, 1)) # it's the dimension after the extraction of the mel coeficient
 
-    #inputs = Input((samplingrate,))
+    encoder = Permute((2,1,3)) (encoderInputs) # Two swap the time with the mel coefficient 
 
-    """ We need to drop out this part and compute by hand the mel coefficient
-        because this part user keras without tensorflow and there is a bug that
-        create problem 
-    x = Reshape((1, -1)) (inputs)
-
-    x = Melspectrogram(n_dft=1024, n_hop=128, input_shape=(1, inputLength),
-                             padding='same', sr=samplingrate, n_mels=80,
-                             fmin=40.0, fmax=samplingrate/2, power_melgram=1.0,
-                             return_decibel_melgram=True, trainable_fb=False,
-                             trainable_kernel=False,
-                             name='mel_stft') (x)
-
-    x = Normalization2D(int_axis=0)(x)
-
-    #note that Melspectrogram puts the sequence in shape (batch_size, melDim, timeSteps, 1)
-    #we would rather have it the other way around for LSTMs
-    """
-    encoder = Permute((2,1,3)) (encoderInputs)
-
+    # Two convolutional layer to extract feature
     encoder = Conv2D(10, (5,1) , activation='relu', padding='same') (encoder)
     encoder = BatchNormalization() (encoder)
     encoder = Conv2D(1, (5,1) , activation='relu', padding='same') (encoder)
@@ -117,42 +141,56 @@ def Seq2SeqModel(nCategories, samplingrate = 16000, inputLength = 16000):
     #encoder = Reshape((125, 80)) (encoder)
     encoder = Lambda(lambda q: K.squeeze(q, -1), name='squeeze_last_dim') (encoder) #keras.backend.squeeze(encoder, axis)
 
-    """ If we have GPU
-    x = Bidirectional(CuDNNLSTM(64, return_sequences = True)) (x) # [b_s, seq_len, vec_dim]
-    x = Bidirectional(CuDNNLSTM(64, return_sequences = True)) (x) # [b_s, seq_len, vec_dim]
-    """
+    # First bidirectional layer that return only the full sequence that is the input of the next bidirectiona lstm layer
+    encoder = Bidirectional(LSTM(64, return_sequences = True, return_state = False)) (encoder) # [b_s, seq_len, vec_dim]
+    # Second bidirectional LSTM layer. This layer return the state of the bidirectional lstm. 
+    # The output is a 5 tensor:
+    #   - lstm: last output of the sequence [b_s, vec_dim]
+    #   - forward_h: the last forward state h [b_s, 64]
+    #   - forward_c: the last forward state c [b_s, 64]
+    #   - backward_h: the last backward state h [b_s, 64]
+    #   - backward_c: the last backward state c [b_s, 64]
+    lstm, forward_h, forward_c, backward_h, backward_c = Bidirectional(LSTM(64, return_sequences = False, return_state = True)) (encoder) 
 
-    encoder = (LSTM(64, return_sequences = False, return_state = True)) (encoder) # [b_s, seq_len, vec_dim]
-    #encoder = Bidirectional(LSTM(64, return_sequences = False, return_state = True)) (encoder) # [b_s, seq_len, vec_dim]
+    # We discard `encoder_outputs` and only keep the states.
+    #encoder_states = [state_h, state_c]
+    encoder_states = [forward_h, forward_c, backward_h, backward_c]
 
-    # We can add a Dense layer to compress more the signal 
-    #encoder = Dense(6, activation = 'relu')(encoder)
-    
-    encoderModel = tf.keras.Model(inputs=[encoderInputs], outputs=[encoder])
+    # Decoder Part (only one bidirectional lstm and a dense layer)
+    # Set up the decoder, using `encoder_states` as initial state.
+    #decoder_inputs = Input(shape = (None, 64))
+    decoderInputs = Input((125, 80))
 
-    # Decoder 
-    #decoderInput = Input((64, 1))
-    """
-    decoder = Bidirectional(LSTM(64, return_sequences = False)) (encoder) # [b_s, seq_len, vec_dim]
-    decoder = Bidirectional(LSTM(64, return_sequences = False)) (decoder) # [b_s, seq_len, vec_dim]
+    # We set up our decoder to return full output sequences,
+    # and to return internal states as well. We don't use the 
+    # return states in the training model, but we will use them in inference.
+    decoder_lstm = Bidirectional(LSTM(64, return_sequences = True, return_state = True))
+    decoderOutputs, _, _, _, _ = decoder_lstm(decoderInputs, initial_state = encoder_states)
 
-    #decoder = Dense((125, 80), activation = 'relu') (decoder)
+    # Dense projection to adjust the dimension
+    decoderOutputs = Dense(80, activation='relu') (decoderOutputs)
 
-    decoder = Lambda(lambda q: tf.expand_dims(q, -1), name='add_dim') (decoder) # Add a dimension 
-    
-    decoder = Conv2DTranspose(10, (5,1) , activation='relu', padding='same') (decoder)
-    decoder = BatchNormalization() (decoder)
-    decoder = Conv2DTranspose(1, (5,1) , activation='relu', padding='same') (decoder)
-    decoder = BatchNormalization() (decoder)
-    
-    #decoderModel = tf.keras.Model(inputs=[decoderInput], outputs=[decoder])
-    
-    autoencoder = tf.keras.Model(inputs=[encoderInputs], outputs=[decoder])
-    """
-    return encoderModel
+    # Add a dimension for the conv layers
+    decoderOutputs = Lambda(lambda q: tf.expand_dims(q, -1), name='add_dim') (decoderOutputs)
 
-#AttModel = AttentionModel(12)
-#AttModel.summary()
+    # Now two 2D convolution transpose to recontruct the original signal
+    decoderOutputs = Conv2DTranspose(10, (5,1) , activation='relu', padding='same') (decoderOutputs)
+    decoderOutputs = BatchNormalization() (decoderOutputs)
+    decoderOutputs = Conv2DTranspose(1, (5,1) , activation='relu', padding='same') (decoderOutputs)
+    decoderOutputs = BatchNormalization() (decoderOutputs)
 
+    model = tf.keras.Model([encoderInputs, decoderInputs], decoderOutputs)
+
+    return model
+
+print("\nAttention Model\n")
+AttModel = AttentionModel(12)
+AttModel.summary()
+
+print("\nRNN Autoencoder Model\n")
+LSTM_AE = LSTMAutoencoder(12)
+LSTM_AE.summary()
+
+print("\nCNN+RNN Autoencoder Model\n")
 Autoencoder = Seq2SeqModel(12)
 Autoencoder.summary()
