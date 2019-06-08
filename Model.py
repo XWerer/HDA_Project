@@ -18,9 +18,9 @@ from kapre.utils import Normalization2D
 #print(tf.keras.__version__)
 
 # Model with the attention layer 
-def AttentionModel(nCategories, samplingrate = 16000, inputLength = 16000):
+def AttentionModel(nCategories, nTime, nMel):
     
-    inputs = Input((80, 125, 1)) # it's the dimension after the extraction of the mel coeficient
+    inputs = Input((nMel, nTime, 1)) # it's the dimension after the extraction of the mel coeficient
 
     #inputs = Input((samplingrate,))
 
@@ -61,7 +61,7 @@ def AttentionModel(nCategories, samplingrate = 16000, inputLength = 16000):
     x = Bidirectional(LSTM(64, return_sequences = True)) (x) # [b_s, seq_len, vec_dim]
     
     # Attention layer computed by hand
-    xFirst = Lambda(lambda q: q[:,64]) (x) #[b_s, vec_dim] take the central element of the sequence
+    xFirst = Lambda(lambda q: q[:,int(nTime/2)]) (x) #[b_s, vec_dim] take the central element of the sequence
     query = Dense(128) (xFirst)            # Project the element to a dense layer this allow the network to learn 
 
     #dot product attention
@@ -80,15 +80,15 @@ def AttentionModel(nCategories, samplingrate = 16000, inputLength = 16000):
 
     output = Dense(nCategories, activation = 'softmax', name='output')(x)
     
-    model = tf.keras.Model(inputs=[inputs], outputs=[x])
+    model = tf.keras.Model(inputs=[inputs], outputs=[output])
     
     return model
 
 # LSTM Autoencoder 
-def LSTMAutoencoder(nCategories, samplingrate = 16000, inputLength = 16000):
+def LSTMAutoencoder(nCategories, nTime, nMel):
     # Encoder part
     # Input layer 
-    encoderInputs = Input((125, 80)) # it's the dimension after the extraction of the mel coeficient
+    encoderInputs = Input((nTime, nMel)) # it's the dimension after the extraction of the mel coeficient
     
     # First bidirectional layer that return only the full sequence that is the input of the next bidirectiona lstm layer
     encoder = Bidirectional(LSTM(64, return_sequences = True, return_state = False)) (encoderInputs) # [b_s, seq_len, vec_dim]
@@ -108,7 +108,7 @@ def LSTMAutoencoder(nCategories, samplingrate = 16000, inputLength = 16000):
     # Decoder Part (only one bidirectional lstm and a dense layer)
     # Set up the decoder, using `encoder_states` as initial state.
     #decoder_inputs = Input(shape = (None, 64))
-    decoderInputs = Input((125, 80))
+    decoderInputs = Input((nTime, nMel))
 
     # We set up our decoder to return full output sequences,
     # and to return internal states as well. We don't use the 
@@ -125,10 +125,10 @@ def LSTMAutoencoder(nCategories, samplingrate = 16000, inputLength = 16000):
     return model
 
 # Model CNN/RNN Encoder-Decoder
-def Seq2SeqModel(nCategories, samplingrate = 16000, inputLength = 16000):
+def Seq2SeqModel(nCategories, nTime, nMel):
     #Encoder 
 
-    encoderInputs = Input((80, 125, 1)) # it's the dimension after the extraction of the mel coeficient
+    encoderInputs = Input((nMel, nTime, 1)) # it's the dimension after the extraction of the mel coeficient
 
     encoder = Permute((2,1,3)) (encoderInputs) # Two swap the time with the mel coefficient 
 
@@ -159,7 +159,7 @@ def Seq2SeqModel(nCategories, samplingrate = 16000, inputLength = 16000):
     # Decoder Part (only one bidirectional lstm and a dense layer)
     # Set up the decoder, using `encoder_states` as initial state.
     #decoder_inputs = Input(shape = (None, 64))
-    decoderInputs = Input((125, 80))
+    decoderInputs = Input((nTime, nMel))
 
     # We set up our decoder to return full output sequences,
     # and to return internal states as well. We don't use the 
@@ -184,13 +184,13 @@ def Seq2SeqModel(nCategories, samplingrate = 16000, inputLength = 16000):
     return model
 
 print("\nAttention Model\n")
-AttModel = AttentionModel(12)
+AttModel = AttentionModel(10, 28, 28)
 AttModel.summary()
 
 print("\nRNN Autoencoder Model\n")
-LSTM_AE = LSTMAutoencoder(12)
+LSTM_AE = LSTMAutoencoder(16, 125, 80)
 LSTM_AE.summary()
 
 print("\nCNN+RNN Autoencoder Model\n")
-Autoencoder = Seq2SeqModel(12)
+Autoencoder = Seq2SeqModel(16, 125, 80)
 Autoencoder.summary()
