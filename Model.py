@@ -120,7 +120,7 @@ def LSTMAutoencoder(nCategories, nTime, nMel):
     decoder_state_bc = Dense(28, activation='relu') (code_bc)
 
     decoder_states = [decoder_state_fh, decoder_state_fc, decoder_state_bh, decoder_state_bc]
-
+    
     # Decoder Part (only one bidirectional lstm and a dense layer)
     # Set up the decoder, using `encoder_states` as initial state.
     #decoder_inputs = Input(shape = (None, 64))
@@ -137,7 +137,7 @@ def LSTMAutoencoder(nCategories, nTime, nMel):
     # Define the model that will turn
     # `encoder_input_data` & `decoder_input_data` into `decoder_target_data`
     model = tf.keras.Model([encoderInputs, decoderInputs], decoderOutputs)
-
+    
     return model
 
 # LSTM Autoencoder encoder only
