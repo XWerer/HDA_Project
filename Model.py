@@ -92,9 +92,6 @@ def LSTMAutoencoder(nCategories, nTime, nMel):
     # Input layer 
     encoderInputs = Input((nTime, nMel)) # it's the dimension after the extraction of the mel coeficient
 
-    # Initial state for the encoder
-    state0 = [tf.zeros([64, ]), tf.zeros([64, ]), tf.zeros([64, ]), tf.zeros([64, ])]
-
     # The bidirectional LSTM layer. This layer return the state of the bidirectional lstm. 
     # The output is a 5 tensor:
     #   - lstm: last output of the sequence [b_s, vec_dim]
@@ -102,7 +99,7 @@ def LSTMAutoencoder(nCategories, nTime, nMel):
     #   - forward_c: the last forward state c [b_s, 64]
     #   - backward_h: the last backward state h [b_s, 64]
     #   - backward_c: the last backward state c [b_s, 64]
-    encoder = Bidirectional(LSTM(64, return_sequences = False, return_state = True, dropout = 0.3))
+    encoder = Bidirectional(LSTM(int(nTime/2), return_sequences = False, return_state = True, dropout = 0.3))
     lstm, forward_h, forward_c, backward_h, backward_c =  encoder(encoderInputs) 
 
     # We discard `encoder_outputs` and only keep the states.
@@ -114,10 +111,10 @@ def LSTMAutoencoder(nCategories, nTime, nMel):
     code_bh = Dense(16, activation='relu') (backward_h)
     code_bc = Dense(16, activation='relu') (backward_c)
 
-    decoder_state_fh = Dense(28, activation='relu') (code_fh)
-    decoder_state_fc = Dense(28, activation='relu') (code_fc)
-    decoder_state_bh = Dense(28, activation='relu') (code_bh)
-    decoder_state_bc = Dense(28, activation='relu') (code_bc)
+    decoder_state_fh = Dense(int(nTime/2), activation='relu') (code_fh)
+    decoder_state_fc = Dense(int(nTime/2), activation='relu') (code_fc)
+    decoder_state_bh = Dense(int(nTime/2), activation='relu') (code_bh)
+    decoder_state_bc = Dense(int(nTime/2), activation='relu') (code_bc)
 
     decoder_states = [decoder_state_fh, decoder_state_fc, decoder_state_bh, decoder_state_bc]
     
@@ -129,7 +126,7 @@ def LSTMAutoencoder(nCategories, nTime, nMel):
     # We set up our decoder to return full output sequences,
     # and to return internal states as well. We don't use the 
     # return states in the training model, but we will use them in inference.
-    decoder_lstm = Bidirectional(LSTM(28, return_sequences = True, return_state = True, dropout = 0.3))
+    decoder_lstm = Bidirectional(LSTM(int(nTime/2), return_sequences = True, return_state = True, dropout = 0.3))
     decoderOutputs, _, _, _, _ = decoder_lstm(decoderInputs, initial_state = decoder_states)
     decoderDense = Dense(nMel, activation='relu')
     decoderOutputs = decoderDense(decoderOutputs)
@@ -153,8 +150,8 @@ def LSTMAutoencoder_Encoder(nCategories, nTime, nMel):
     #   - forward_c: the last forward state c [b_s, 64]
     #   - backward_h: the last backward state h [b_s, 64]
     #   - backward_c: the last backward state c [b_s, 64]
-    lstm, forward_h, forward_c, backward_h, backward_c = Bidirectional(LSTM(64, return_sequences = False, return_state = True, dropout = 0.3)) (encoderInputs) 
-
+    encoder = Bidirectional(LSTM(int(nTime/2), return_sequences = False, return_state = True, dropout = 0.3))
+    lstm, forward_h, forward_c, backward_h, backward_c =  encoder(encoderInputs) 
     # We discard `encoder_outputs` and only keep the states.
     #encoder_states = [state_h, state_c]
     encoder_states = [forward_h, forward_c, backward_h, backward_c]
@@ -176,7 +173,6 @@ def LSTMAutoencoder_Encoder(nCategories, nTime, nMel):
 # Model CNN/RNN Encoder-Decoder
 def Seq2SeqModel(nCategories, nTime, nMel):
     #Encoder 
-
     encoderInputs = Input((nMel, nTime, 1)) # it's the dimension after the extraction of the mel coeficient
 
     encoder = Permute((2,1,3)) (encoderInputs) # Two swap the time with the mel coefficient 
@@ -191,7 +187,7 @@ def Seq2SeqModel(nCategories, nTime, nMel):
     encoder = Lambda(lambda q: K.squeeze(q, -1), name='squeeze_last_dim') (encoder) #keras.backend.squeeze(encoder, axis)
 
     # First bidirectional layer that return only the full sequence that is the input of the next bidirectiona lstm layer
-    encoder = Bidirectional(LSTM(64, return_sequences = True, return_state = False)) (encoder) # [b_s, seq_len, vec_dim]
+    encoder = Bidirectional(LSTM(int(nTime/2), return_sequences = True, return_state = False)) (encoder) # [b_s, seq_len, vec_dim]
     # Second bidirectional LSTM layer. This layer return the state of the bidirectional lstm. 
     # The output is a 5 tensor:
     #   - lstm: last output of the sequence [b_s, vec_dim]
@@ -199,11 +195,23 @@ def Seq2SeqModel(nCategories, nTime, nMel):
     #   - forward_c: the last forward state c [b_s, 64]
     #   - backward_h: the last backward state h [b_s, 64]
     #   - backward_c: the last backward state c [b_s, 64]
-    lstm, forward_h, forward_c, backward_h, backward_c = Bidirectional(LSTM(64, return_sequences = False, return_state = True)) (encoder) 
+    lstm, forward_h, forward_c, backward_h, backward_c = Bidirectional(LSTM(int(nTime/2), return_sequences = False, return_state = True)) (encoder) 
 
     # We discard `encoder_outputs` and only keep the states.
     #encoder_states = [state_h, state_c]
     encoder_states = [forward_h, forward_c, backward_h, backward_c]
+
+    code_fh = Dense(16, activation='relu') (forward_h)
+    code_fc = Dense(16, activation='relu') (forward_c)
+    code_bh = Dense(16, activation='relu') (backward_h)
+    code_bc = Dense(16, activation='relu') (backward_c)
+
+    decoder_state_fh = Dense(int(nTime/2), activation='relu') (code_fh)
+    decoder_state_fc = Dense(int(nTime/2), activation='relu') (code_fc)
+    decoder_state_bh = Dense(int(nTime/2), activation='relu') (code_bh)
+    decoder_state_bc = Dense(int(nTime/2), activation='relu') (code_bc)
+
+    decoder_states = [decoder_state_fh, decoder_state_fc, decoder_state_bh, decoder_state_bc]
 
     # Decoder Part (only one bidirectional lstm and a dense layer)
     # Set up the decoder, using `encoder_states` as initial state.
@@ -213,11 +221,11 @@ def Seq2SeqModel(nCategories, nTime, nMel):
     # We set up our decoder to return full output sequences,
     # and to return internal states as well. We don't use the 
     # return states in the training model, but we will use them in inference.
-    decoder_lstm = Bidirectional(LSTM(64, return_sequences = True, return_state = True))
-    decoderOutputs, _, _, _, _ = decoder_lstm(decoderInputs, initial_state = encoder_states)
+    decoder_lstm = Bidirectional(LSTM(int(nTime/2), return_sequences = True, return_state = True))
+    decoderOutputs, _, _, _, _ = decoder_lstm(decoderInputs, initial_state = decoder_states)
 
     # Dense projection to adjust the dimension
-    decoderOutputs = Dense(80, activation='relu') (decoderOutputs)
+    decoderOutputs = Dense(nMel, activation='relu') (decoderOutputs)
 
     # Add a dimension for the conv layers
     decoderOutputs = Lambda(lambda q: tf.expand_dims(q, -1), name='add_dim') (decoderOutputs)
@@ -229,6 +237,51 @@ def Seq2SeqModel(nCategories, nTime, nMel):
     decoderOutputs = BatchNormalization() (decoderOutputs)
 
     model = tf.keras.Model([encoderInputs, decoderInputs], decoderOutputs)
+
+    return model
+
+# Model CNN/RNN Encoder-Decoder
+def Seq2SeqModel_Encoder(nCategories, nTime, nMel):
+    #Encoder 
+    encoderInputs = Input((nMel, nTime, 1)) # it's the dimension after the extraction of the mel coeficient
+
+    encoder = Permute((2,1,3)) (encoderInputs) # Two swap the time with the mel coefficient 
+
+    # Two convolutional layer to extract feature
+    encoder = Conv2D(10, (5,1) , activation='relu', padding='same') (encoder)
+    encoder = BatchNormalization() (encoder)
+    encoder = Conv2D(1, (5,1) , activation='relu', padding='same') (encoder)
+    encoder = BatchNormalization() (encoder)
+
+    #encoder = Reshape((125, 80)) (encoder)
+    encoder = Lambda(lambda q: K.squeeze(q, -1), name='squeeze_last_dim') (encoder) #keras.backend.squeeze(encoder, axis)
+
+    # First bidirectional layer that return only the full sequence that is the input of the next bidirectiona lstm layer
+    encoder = Bidirectional(LSTM(int(nTime/2), return_sequences = True, return_state = False)) (encoder) # [b_s, seq_len, vec_dim]
+    # Second bidirectional LSTM layer. This layer return the state of the bidirectional lstm. 
+    # The output is a 5 tensor:
+    #   - lstm: last output of the sequence [b_s, vec_dim]
+    #   - forward_h: the last forward state h [b_s, 64]
+    #   - forward_c: the last forward state c [b_s, 64]
+    #   - backward_h: the last backward state h [b_s, 64]
+    #   - backward_c: the last backward state c [b_s, 64]
+    lstm, forward_h, forward_c, backward_h, backward_c = Bidirectional(LSTM(int(nTime/2), return_sequences = False, return_state = True)) (encoder) 
+
+    # We discard `encoder_outputs` and only keep the states.
+    #encoder_states = [state_h, state_c]
+    encoder_states = [forward_h, forward_c, backward_h, backward_c]
+
+    code_fh = Dense(16, activation='relu') (forward_h)
+    code_fc = Dense(16, activation='relu') (forward_c)
+    code_bh = Dense(16, activation='relu') (backward_h)
+    code_bc = Dense(16, activation='relu') (backward_c)
+
+    code = [code_fh, code_fc, code_bh, code_bc]
+
+    code = Concatenate() (code) 
+
+    # Define the model that will turn
+    model = tf.keras.Model(encoderInputs, code)
 
     return model
 
@@ -246,4 +299,8 @@ LSTM_E.summary()
 
 print("\nCNN+RNN Autoencoder Model\n")
 Autoencoder = Seq2SeqModel(16, 125, 80)
+Autoencoder.summary()
+
+print("\nCNN+RNN Autoencoder_Encoder Model\n")
+Autoencoder = Seq2SeqModel_Encoder(16, 125, 80)
 Autoencoder.summary()
