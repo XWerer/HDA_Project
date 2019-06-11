@@ -2,4 +2,5 @@ Dataset/
 .ipynb_checkpoints/
 __pycache__/
 prova.h5
+provaS2S.h5
 Weight_test/
