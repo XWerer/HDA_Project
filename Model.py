@@ -3,16 +3,16 @@ import tensorflow as tf
 from tensorflow import keras
 
 from tensorflow.keras.layers import Input, Activation, Concatenate, Permute, Reshape, Flatten, Lambda, Dot, Softmax
-from tensorflow.keras.layers import Add, Dropout, BatchNormalization, Conv2D, Conv2DTranspose, Reshape, MaxPooling2D, Dense, Bidirectional, LSTM, GRU
+from tensorflow.keras.layers import Add, Dropout, BatchNormalization, Conv2D, Conv2DTranspose, MaxPooling2D, Dense, Bidirectional, LSTM, GRU
 #from tensorflow.keras.layers import Attention, CuDNNLSTM
 from tensorflow.keras import backend as K
-from tensorflow.keras.utils import to_categorical
-from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint, LearningRateScheduler
-from tensorflow.keras import optimizers
+#from tensorflow.keras.utils import to_categorical
+#from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint, LearningRateScheduler
+#from tensorflow.keras import optimizers
 
 #kapre for Mel Coefficient 
-from kapre.time_frequency import Melspectrogram, Spectrogram
-from kapre.utils import Normalization2D
+#from kapre.time_frequency import Melspectrogram, Spectrogram
+#from kapre.utils import Normalization2D
 
 import numpy as np
 
@@ -93,25 +93,20 @@ def AttentionModel(nCategories, nTime, nMel, use_GRU = False):
 
 # Recursive (LSTM/GRU) Autoencoder 
 def AE(nCategories, nTime, nMel, use_GRU = False):
-    # Some variables
-    #decoder_states = None
-    #decoderOutputs = None
 
-    # Encoder part: Input layer 
+    # Encoder part: Input layer
     encoderInputs = Input((nTime, nMel)) # it's the dimension after the extraction of the mel coeficient
 
     if use_GRU:
         # The bidirectional GRU layer. This layer return the state of the bidirectional GRU. 
         # The output is a 3 tensor:
-        #   - gru: last output of the sequence [b_s, vec_dim]
+        #   - gru: last output of the sequence [b_s, (nTime/2)]
         #   - forward_h: the last forward state h [b_s, (nTime/2)]
         #   - backward_h: the last backward state h [b_s, (nTime/2)]
-        encoder = Bidirectional(GRU(int(nTime/2), return_sequences = False, return_state = True, dropout = 0.3))
-        gru, forward_h, backward_h = encoder(encoderInputs) 
+        encoder = Bidirectional(GRU(int(nTime/2), return_sequences = False, return_state = True))
+        gru, forward_h, backward_h = encoder(encoderInputs)
 
         # We discard `gru` and only keep the states.
-        encoder_states = [forward_h, backward_h]
-
         code_fh = Dense(16, activation='relu') (forward_h)
         code_bh = Dense(16, activation='relu') (backward_h)
 
@@ -119,20 +114,19 @@ def AE(nCategories, nTime, nMel, use_GRU = False):
         decoder_state_bh = Dense(int(nTime/2), activation='relu') (code_bh)
 
         decoder_states = [decoder_state_fh, decoder_state_bh]
+        
     else:
         # The bidirectional LSTM layer. This layer return the state of the bidirectional LSTM. 
         # The output is a 5 tensor:
-        #   - lstm: last output of the sequence [b_s, vec_dim]
+        #   - lstm: last output of the sequence [b_s, (nTime/2)]
         #   - forward_h: the last forward state h [b_s, (nTime/2)]
         #   - forward_c: the last forward state c [b_s, (nTime/2)]
         #   - backward_h: the last backward state h [b_s, (nTime/2)]
         #   - backward_c: the last backward state c [b_s, (nTime/2)]
-        encoder = Bidirectional(LSTM(int(nTime/2), return_sequences = False, return_state = True, dropout = 0.3))
+        encoder = Bidirectional(LSTM(int(nTime/2), return_sequences = False, return_state = True))
         lstm, forward_h, forward_c, backward_h, backward_c =  encoder(encoderInputs) 
 
         # We discard `lstm` and only keep the states.
-        encoder_states = [forward_h, forward_c, backward_h, backward_c]
-
         code_fh = Dense(16, activation='relu') (forward_h)
         code_fc = Dense(16, activation='relu') (forward_c)
         code_bh = Dense(16, activation='relu') (backward_h)
@@ -146,17 +140,18 @@ def AE(nCategories, nTime, nMel, use_GRU = False):
         decoder_states = [decoder_state_fh, decoder_state_fc, decoder_state_bh, decoder_state_bc]
 
     # Decoder Part
-    # Set up the decoder, using `decoder_states` as initial state.
     decoderInputs = Input((nTime, nMel))
 
+    # Set up the decoder, using `decoder_states` as initial state.
     # We set up our decoder to return full output sequences, the state is not important now
     if use_GRU:
-        decoder = Bidirectional(GRU(int(nTime/2), return_sequences = True, return_state = True, dropout = 0.3))
+        decoder = Bidirectional(GRU(int(nTime/2), return_sequences = True, return_state = True))
         decoderOutputs, _, _ = decoder(decoderInputs, initial_state = decoder_states)
     else:
-        decoder = Bidirectional(LSTM(int(nTime/2), return_sequences = True, return_state = True, dropout = 0.3))
+        decoder = Bidirectional(LSTM(int(nTime/2), return_sequences = True, return_state = True))
         decoderOutputs, _, _, _, _ = decoder(decoderInputs, initial_state = decoder_states)
     
+    # As last layer a dense layer to reconstruct the original signal 
     decoderDense = Dense(nMel, activation='relu')
     decoderOutputs = decoderDense(decoderOutputs)
 
@@ -176,12 +171,10 @@ def AE_Encoder(nCategories, nTime, nMel, use_GRU = False):
         #   - gru: last output of the sequence [b_s, vec_dim]
         #   - forward_h: the last forward state h [b_s, (nTime/2)]
         #   - backward_h: the last backward state h [b_s, (nTime/2)]
-        encoder = Bidirectional(GRU(int(nTime/2), return_sequences = False, return_state = True, dropout = 0.3))
+        encoder = Bidirectional(GRU(int(nTime/2), return_sequences = False, return_state = True))
         gru, forward_h, backward_h = encoder(encoderInputs) 
 
         # We discard `gru` and only keep the states.
-        encoder_states = [forward_h, backward_h]
-
         code_fh = Dense(16, activation='relu') (forward_h)
         code_bh = Dense(16, activation='relu') (backward_h)
 
@@ -194,12 +187,10 @@ def AE_Encoder(nCategories, nTime, nMel, use_GRU = False):
         #   - forward_c: the last forward state c [b_s, (nTime/2)]
         #   - backward_h: the last backward state h [b_s, (nTime/2)]
         #   - backward_c: the last backward state c [b_s, (nTime/2)]
-        encoder = Bidirectional(LSTM(int(nTime/2), return_sequences = False, return_state = True, dropout = 0.3))
+        encoder = Bidirectional(LSTM(int(nTime/2), return_sequences = False, return_state = True))
         lstm, forward_h, forward_c, backward_h, backward_c =  encoder(encoderInputs) 
 
         # We discard `lstm` and only keep the states.
-        encoder_states = [forward_h, forward_c, backward_h, backward_c]
-
         code_fh = Dense(16, activation='relu') (forward_h)
         code_fc = Dense(16, activation='relu') (forward_c)
         code_bh = Dense(16, activation='relu') (backward_h)
@@ -238,12 +229,10 @@ def Seq2SeqModel(nCategories, nTime, nMel, use_GRU = False):
         #   - gru: last output of the sequence [b_s, vec_dim]
         #   - forward_h: the last forward state h [b_s, (nTime/2)]
         #   - backward_h: the last backward state h [b_s, (nTime/2)]
-        encoder_1 = Bidirectional(GRU(int(nTime/2), return_sequences = False, return_state = True, dropout = 0.3))
+        encoder_1 = Bidirectional(GRU(int(nTime/2), return_sequences = False, return_state = True))
         gru, forward_h, backward_h = encoder_1(encoder) 
 
         # We discard `gru` and only keep the states.
-        encoder_states = [forward_h, backward_h]
-
         code_fh = Dense(16, activation='relu') (forward_h)
         code_bh = Dense(16, activation='relu') (backward_h)
 
@@ -261,12 +250,10 @@ def Seq2SeqModel(nCategories, nTime, nMel, use_GRU = False):
         #   - forward_c: the last forward state c [b_s, (nTime/2)]
         #   - backward_h: the last backward state h [b_s, (nTime/2)]
         #   - backward_c: the last backward state c [b_s, (nTime/2)]
-        encoder_1 = Bidirectional(LSTM(int(nTime/2), return_sequences = False, return_state = True, dropout = 0.3))
+        encoder_1 = Bidirectional(LSTM(int(nTime/2), return_sequences = False, return_state = True))
         lstm, forward_h, forward_c, backward_h, backward_c =  encoder_1(encoder) 
 
         # We discard `lstm` and only keep the states.
-        encoder_states = [forward_h, forward_c, backward_h, backward_c]
-
         code_fh = Dense(16, activation='relu') (forward_h)
         code_fc = Dense(16, activation='relu') (forward_c)
         code_bh = Dense(16, activation='relu') (backward_h)
@@ -280,15 +267,15 @@ def Seq2SeqModel(nCategories, nTime, nMel, use_GRU = False):
         decoder_states = [decoder_state_fh, decoder_state_fc, decoder_state_bh, decoder_state_bc]
 
     # Decoder Part
-    # Set up the decoder, using `decoder_states` as initial state.
     decoderInputs = Input((nTime, nMel))
 
+    # Set up the decoder, using `decoder_states` as initial state.
     # We set up our decoder to return full output sequences, the state is not important now
     if use_GRU:
-        decoder = Bidirectional(GRU(int(nTime/2), return_sequences = True, return_state = True, dropout = 0.3))
+        decoder = Bidirectional(GRU(int(nTime/2), return_sequences = True, return_state = True))
         decoderOutputs, _, _ = decoder(decoderInputs, initial_state = decoder_states)
     else:
-        decoder = Bidirectional(LSTM(int(nTime/2), return_sequences = True, return_state = True, dropout = 0.3))
+        decoder = Bidirectional(LSTM(int(nTime/2), return_sequences = True, return_state = True))
         decoderOutputs, _, _, _, _ = decoder(decoderInputs, initial_state = decoder_states)
     
     decoderDense = Dense(nMel, activation='relu')
@@ -331,7 +318,7 @@ def Seq2SeqModel_Encoder(nCategories, nTime, nMel, use_GRU = False):
         #   - gru: last output of the sequence [b_s, vec_dim]
         #   - forward_h: the last forward state h [b_s, (nTime/2)]
         #   - backward_h: the last backward state h [b_s, (nTime/2)]
-        encoder_1 = Bidirectional(GRU(int(nTime/2), return_sequences = False, return_state = True, dropout = 0.3))
+        encoder_1 = Bidirectional(GRU(int(nTime/2), return_sequences = False, return_state = True))
         gru, forward_h, backward_h = encoder_1(encoder) 
 
         # We discard `gru` and only keep the states.
@@ -351,7 +338,7 @@ def Seq2SeqModel_Encoder(nCategories, nTime, nMel, use_GRU = False):
         #   - forward_c: the last forward state c [b_s, (nTime/2)]
         #   - backward_h: the last backward state h [b_s, (nTime/2)]
         #   - backward_c: the last backward state c [b_s, (nTime/2)]
-        encoder_1 = Bidirectional(LSTM(int(nTime/2), return_sequences = False, return_state = True, dropout = 0.3))
+        encoder_1 = Bidirectional(LSTM(int(nTime/2), return_sequences = False, return_state = True))
         lstm, forward_h, forward_c, backward_h, backward_c =  encoder_1(encoder) 
 
         # We discard `lstm` and only keep the states.
@@ -371,13 +358,15 @@ def Seq2SeqModel_Encoder(nCategories, nTime, nMel, use_GRU = False):
 
     return model
 
+"""
 print("\nAttention Model\n")
 AttModel = AttentionModel(10, 28, 28, use_GRU = True)
 AttModel.summary()
 
 print("\nRNN Autoencoder Model\n")
-AE = AE(10, 28, 28, use_GRU = False)
+AE = AE(10, 28, 28, use_GRU = True)
 AE.summary()
+AE.compile(optimizer='adam', loss='mse', metrics=['accuracy'])
 
 print("\nRNN Autoencoder_Encoder Model\n")
 AE_e = AE_Encoder(10, 28, 28, use_GRU = True)
@@ -390,3 +379,4 @@ Autoencoder.summary()
 print("\nCNN+RNN Autoencoder_Encoder Model\n")
 Autoencoder = Seq2SeqModel_Encoder(10, 125, 80, use_GRU = True)
 Autoencoder.summary()
+"""
