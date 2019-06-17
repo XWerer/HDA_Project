@@ -4,3 +4,4 @@ __pycache__/
 prova.h5
 provaS2S.h5
 Weight_test/
+train.npy
