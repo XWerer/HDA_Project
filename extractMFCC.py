@@ -52,16 +52,17 @@ def computeFeatures(wav_signal_name, log = True, w_len = 0.025, w_step = 0.01):
         E_d_d = E_deltas_2
 
     # preallocating space:
-    num_frames = coeffs.shape[0]
+    #num_frames = coeffs.shape[0]
+    num_frames = 99
     features = np.zeros((num_frames,39))
 
     # putting everything inside the features 2D matrix:
-    features[:, 0:12] = useful_coeffs
-    features[:, 12:24] = deltas
-    features[:, 24:36] = deltas_2
-    features[:, 36] = log_E_s
-    features[:,37] = E_d
-    features[:, 38] = E_d_d
+    features[0:coeffs.shape[0], 0:12] = useful_coeffs
+    features[0:coeffs.shape[0], 12:24] = deltas
+    features[0:coeffs.shape[0], 24:36] = deltas_2
+    features[0:coeffs.shape[0], 36] = log_E_s
+    features[0:coeffs.shape[0], 37] = E_d
+    features[0:coeffs.shape[0], 38] = E_d_d
     
     return features
 
@@ -104,16 +105,17 @@ def computeFeatures1(signal, Fc, log = True, w_len = 0.025, w_step = 0.01):
         E_d_d = E_deltas_2
 
     # preallocating space:
-    num_frames = coeffs.shape[0]
+    #num_frames = coeffs.shape[0]
+    num_frames = 99
     features = np.zeros((num_frames,39))
 
     # putting everything inside the features 2D matrix:
-    features[:, 0:12] = useful_coeffs
-    features[:, 12:24] = deltas
-    features[:, 24:36] = deltas_2
-    features[:, 36] = log_E_s
-    features[:,37] = E_d
-    features[:, 38] = E_d_d
+    features[0:coeffs.shape[0], 0:12] = useful_coeffs
+    features[0:coeffs.shape[0], 12:24] = deltas
+    features[0:coeffs.shape[0], 24:36] = deltas_2
+    features[0:coeffs.shape[0], 36] = log_E_s
+    features[0:coeffs.shape[0], 37] = E_d
+    features[0:coeffs.shape[0], 38] = E_d_d
     
     return features
 
