@@ -68,7 +68,7 @@ def AttentionModel(nCategories, nTime, nMel, use_GRU = False):
         x = Bidirectional(LSTM(nMel, return_sequences = True)) (x) # [b_s, seq_len, vec_dim]
     
     # Attention layer computed by hand
-    xFirst = Lambda(lambda q: q[:, nMel]) (x) #[b_s, vec_dim] take the central element of the sequence
+    xFirst = Lambda(lambda q: q[:, int(nTime/2)]) (x)   #[b_s, vec_dim] take the central element of the sequence
     query = Dense(nMel*2) (xFirst)                      # Project the element to a dense layer this allow the network to learn 
 
     #dot product attention
