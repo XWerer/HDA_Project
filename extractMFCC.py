@@ -66,7 +66,7 @@ def computeFeatures(wav_signal_name, log = True, w_len = 0.025, w_step = 0.01):
     return features
 
 
-def computeFeatures1(signal, Fc, log = True, , w_len = 0.025, w_step = 0.01):
+def computeFeatures1(signal, Fc, log = True, w_len = 0.025, w_step = 0.01):
     # input:   audio file, this time is already a vector
     # output:  a 2D matrix of size (num_frames, 39), where 39 is the number of coefficients of the features vectors
     # log = True: it means that we take the logarithm of the energies of delta and delta-delta
