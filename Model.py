@@ -22,7 +22,7 @@ import numpy as np
 # Model with the attention layer 
 def AttentionModel(nCategories, nTime, nMel, use_GRU = False):
     
-    inputs = Input((nMel, nTime, 1)) # it's the dimension after the extraction of the mel coeficient
+    inputs = Input((nTime, nMel, 1)) # it's the dimension after the extraction of the mel coeficient
 
     #inputs = Input((samplingrate,))
 
@@ -43,10 +43,10 @@ def AttentionModel(nCategories, nTime, nMel, use_GRU = False):
     #note that Melspectrogram puts the sequence in shape (batch_size, melDim, timeSteps, 1)
     #we would rather have it the other way around for LSTMs
     """
-    x = Permute((2,1,3)) (inputs)
+    #x = Permute((2,1,3)) (inputs)
 
     # Two 2D convolutional layer to extrac features  
-    x = Conv2D(10, (5,1) , activation='relu', padding='same') (x)
+    x = Conv2D(10, (5,1) , activation='relu', padding='same') (inputs)
     x = BatchNormalization() (x)
     x = Conv2D(1, (5,1) , activation='relu', padding='same') (x)
     x = BatchNormalization() (x)
