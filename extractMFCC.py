@@ -17,11 +17,9 @@ def computeFeatures(wav_signal_name, desiredLength = 16000, log = True, w_len = 
     # Nyquist critical frequency(highest freq. that can be represented)
     nyqF = int(Fc/2)  #input in sf.base.mfcc() has to be an int
     signal = input_signal[1] # this is the vector-signal we are interested in
-    print(signal.shape)
     if(signal.shape[0] < desiredLength):
         noise = read(noise)[1]
         signal = addNoise2(signal, noise, begin = True)
-        print(signal.shape)
     # appendEnergy = True means that the zeroth value of all the cepstral vectors is replaced  with the corresponding frame energy, E(s_i)
     coeffs = sf.base.mfcc(signal, samplerate = Fc, nfft = nyqF, appendEnergy = True, winlen=w_len, winstep=w_step, winfunc=np.hamming)
     useful_coeffs = coeffs[:,1:13] # (taking only the 1,2,...,12 MFCC's)
@@ -125,8 +123,6 @@ def computeFeatures1(signal, Fc, log = True, w_len = 0.025, w_step = 0.01):
     
     return features
 
-feats = computeFeatures("fromV2bis.wav")
-print(feats.shape)
 
     
     
