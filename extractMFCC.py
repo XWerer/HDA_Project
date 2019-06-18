@@ -2,9 +2,10 @@ import scipy
 from scipy.io.wavfile import read
 import python_speech_features as sf
 import numpy as np
+from addNoise import addNoise2
 
-def computeFeatures(wav_signal_name, log = True, w_len = 0.025, w_step = 0.01):
-    # input:   a wav audio file (ours are all 1 second long)
+def computeFeatures(wav_signal_name, desiredLength = 16000, log = True, w_len = 0.025, w_step = 0.01, noise = "doing_the_dishes.wav"):
+    # input:   a wav audio file (ours are all 1 second long, so 16000 sample long if Fc = 16000)
     # output:  a 2D matrix of size (num_frames, 39), where 39 is the number of coefficients of the features vectors
     # data are supposed to be single channel
     # log = True: it means that we take the logarithm of the energies of delta and delta-delta
@@ -16,6 +17,11 @@ def computeFeatures(wav_signal_name, log = True, w_len = 0.025, w_step = 0.01):
     # Nyquist critical frequency(highest freq. that can be represented)
     nyqF = int(Fc/2)  #input in sf.base.mfcc() has to be an int
     signal = input_signal[1] # this is the vector-signal we are interested in
+    print(signal.shape)
+    if(signal.shape[0] < desiredLength):
+        noise = read(noise)[1]
+        signal = addNoise2(signal, noise, begin = True)
+        print(signal.shape)
     # appendEnergy = True means that the zeroth value of all the cepstral vectors is replaced  with the corresponding frame energy, E(s_i)
     coeffs = sf.base.mfcc(signal, samplerate = Fc, nfft = nyqF, appendEnergy = True, winlen=w_len, winstep=w_step, winfunc=np.hamming)
     useful_coeffs = coeffs[:,1:13] # (taking only the 1,2,...,12 MFCC's)
@@ -27,11 +33,11 @@ def computeFeatures(wav_signal_name, log = True, w_len = 0.025, w_step = 0.01):
     #print("shape of useful coefficients: " + str(useful_coeffs.shape))
 
     # extracting deltas
-    deltas = sf.base.delta(useful_coeffs, 1)
+    deltas = sf.base.delta(useful_coeffs, 2)
     #print("deltas = " + str(deltas.shape))
     
     # extracting deltas of deltas
-    deltas_2 = sf.base.delta(deltas, 1)
+    deltas_2 = sf.base.delta(deltas, 2)
     #print("deltas_2 = " + str(deltas_2.shape))
     
     # getting energies of deltas and of deltas_2
@@ -52,8 +58,8 @@ def computeFeatures(wav_signal_name, log = True, w_len = 0.025, w_step = 0.01):
         E_d_d = E_deltas_2
 
     # preallocating space:
-    #num_frames = coeffs.shape[0]
-    num_frames = 99
+    num_frames = coeffs.shape[0]
+    #num_frames = 99
     features = np.zeros((num_frames,39))
 
     # putting everything inside the features 2D matrix:
@@ -119,7 +125,8 @@ def computeFeatures1(signal, Fc, log = True, w_len = 0.025, w_step = 0.01):
     
     return features
 
-
+feats = computeFeatures("fromV2bis.wav")
+print(feats.shape)
 
     
     
