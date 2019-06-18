@@ -81,7 +81,8 @@ def addNoise2(signal, noise, desiredLength = 16000, intensity = 1, begin = False
 
     tmpLength = signal.shape[0]
     lengthToCover = desiredLength - tmpLength
-    noise = noise[1000:1000 + lengthToCover]
+    # it's 112000 since I want the 8th second, that corresponds to silence
+    noise = noise[112000:112000 + lengthToCover]
     
     # control how much noise to add
     # additive_noise = np.multiply(intensity, noise)

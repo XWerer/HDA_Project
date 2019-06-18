@@ -4,8 +4,9 @@ import python_speech_features as sf
 import numpy as np
 from addNoise import addNoise2
 
-def computeFeatures(wav_signal_name, desiredLength = 16000, log = True, w_len = 0.025, w_step = 0.01, noise = "doing_the_dishes.wav"):
+def computeFeatures(wav_signal_name, desiredLength = 16000, log = True, w_len = 0.025, w_step = 0.01, noise = "dude_miaowing.wav"):
     # input:   a wav audio file (ours are all 1 second long, so 16000 sample long if Fc = 16000)
+    # the noise is the one to add to the signal if the signal is not full length
     # output:  a 2D matrix of size (num_frames, 39), where 39 is the number of coefficients of the features vectors
     # data are supposed to be single channel
     # log = True: it means that we take the logarithm of the energies of delta and delta-delta
