@@ -105,7 +105,7 @@ def addNoise2(signal, noise, desiredLength = 16000, intensity = 1, begin = False
 #simple code to try addNoise2:
 input_signal = read("fromV2bis.wav")
 print(input_signal[1].shape)
-noise_signal = read("doing_the_dishes.wav")
+noise_signal = read("dude_miaowing.wav")
 Fc_s = input_signal[0]
 signal = input_signal[1]
 noise = noise_signal[1]
@@ -115,7 +115,6 @@ write("noisy_output.wav", Fc_s, sign_full)
 
 print(sign_full.shape)
 """
-
 
 
 
