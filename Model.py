@@ -22,7 +22,7 @@ import numpy as np
 # Model with the attention layer 
 def AttentionModel(nCategories, nTime, nMel, use_GRU = False):
     
-    inputs = Input((nTime, nMel, 1)) # it's the dimension after the extraction of the mel coeficient
+    inputs = Input((nTime, nMel, 1)) # it's the dimension after the extraction of the mel coefficients
 
     #inputs = Input((samplingrate,))
 
@@ -45,7 +45,7 @@ def AttentionModel(nCategories, nTime, nMel, use_GRU = False):
     """
     #x = Permute((2,1,3)) (inputs)
 
-    # Two 2D convolutional layer to extrac features  
+    # Two 2D convolutional layer to extract features  
     x = Conv2D(10, (5,1) , activation='relu', padding='same') (inputs)
     x = BatchNormalization() (x)
     x = Conv2D(1, (5,1) , activation='relu', padding='same') (x)
@@ -69,7 +69,7 @@ def AttentionModel(nCategories, nTime, nMel, use_GRU = False):
     
     # Attention layer computed by hand
     xFirst = Lambda(lambda q: q[:, int(nTime/2)]) (x)   #[b_s, vec_dim] take the central element of the sequence
-    query = Dense(nMel*2) (xFirst)                      # Project the element to a dense layer this allow the network to learn 
+    query = Dense(nMel*2) (xFirst)                      # Project the element to a dense layer, this allows the network to learn 
 
     #dot product attention
     attScores = Dot(axes=[1,2])([query, x]) 
