@@ -1,18 +1,19 @@
 # TensorFlow and tf.keras
 import tensorflow as tf
-from tensorflow import keras
+#from tensorflow import keras
+from keras.models import Model, load_model
 
-from tensorflow.keras.layers import Input, Activation, Concatenate, Permute, Reshape, Flatten, Lambda, Dot, Softmax
-from tensorflow.keras.layers import Add, Dropout, BatchNormalization, Conv2D, Conv2DTranspose, MaxPooling2D, Dense, Bidirectional, LSTM, GRU
-#from tensorflow.keras.layers import Attention, CuDNNLSTM
-from tensorflow.keras import backend as K
-#from tensorflow.keras.utils import to_categorical
-#from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint, LearningRateScheduler
-#from tensorflow.keras import optimizers
+from keras.layers import Input, Activation, Concatenate, Permute, Reshape, Flatten, Lambda, Dot, Softmax
+from keras.layers import Add, Dropout, BatchNormalization, Conv2D, Conv2DTranspose, MaxPooling2D, Dense, Bidirectional, LSTM, GRU
+#from keras.layers import Attention, CuDNNLSTM
+from keras import backend as K
+from keras.utils import to_categorical
+from keras.callbacks import EarlyStopping, ModelCheckpoint, LearningRateScheduler
+from keras import optimizers
 
 #kapre for Mel Coefficient 
-#from kapre.time_frequency import Melspectrogram, Spectrogram
-#from kapre.utils import Normalization2D
+from kapre.time_frequency import Melspectrogram, Spectrogram
+from kapre.utils import Normalization2D
 
 import numpy as np
 
@@ -22,31 +23,31 @@ import numpy as np
 # Model with the attention layer 
 def AttentionModel(nCategories, nTime, nMel, use_GRU = False):
     
-    inputs = Input((nTime, nMel, 1)) # it's the dimension after the extraction of the mel coefficients
+    #inputs = Input((nTime, nMel, 1)) # it's the dimension after the extraction of the mel coefficients
 
-    #inputs = Input((samplingrate,))
+    inputs = Input((16000,))
 
     """ We need to drop out this part and compute by hand the mel coefficient
         because this part user keras without tensorflow and there is a bug that
-        create problem 
+        create problem """
     x = Reshape((1, -1)) (inputs)
 
-    x = Melspectrogram(n_dft=1024, n_hop=128, input_shape=(1, inputLength),
-                             padding='same', sr=samplingrate, n_mels=80,
-                             fmin=40.0, fmax=samplingrate/2, power_melgram=1.0,
+    x = Melspectrogram(n_dft=1024, n_hop=128, input_shape=(1, 16000),
+                             padding='same', sr=16000, n_mels=80,
+                             fmin=40.0, fmax=16000/2, power_melgram=1.0,
                              return_decibel_melgram=True, trainable_fb=False,
                              trainable_kernel=False,
                              name='mel_stft') (x)
 
     x = Normalization2D(int_axis=0)(x)
-
+    """
     #note that Melspectrogram puts the sequence in shape (batch_size, melDim, timeSteps, 1)
     #we would rather have it the other way around for LSTMs
     """
-    #x = Permute((2,1,3)) (inputs)
+    x = Permute((2,1,3)) (x)
 
     # Two 2D convolutional layer to extract features  
-    x = Conv2D(10, (5,1) , activation='relu', padding='same') (inputs)
+    x = Conv2D(10, (5,1) , activation='relu', padding='same') (x)
     x = BatchNormalization() (x)
     x = Conv2D(1, (5,1) , activation='relu', padding='same') (x)
     x = BatchNormalization() (x)
@@ -87,7 +88,7 @@ def AttentionModel(nCategories, nTime, nMel, use_GRU = False):
 
     output = Dense(nCategories, activation = 'softmax', name='output')(x)
     
-    model = tf.keras.Model(inputs=[inputs], outputs=[output])
+    model = Model(inputs=[inputs], outputs=[output])
     
     return model
 
