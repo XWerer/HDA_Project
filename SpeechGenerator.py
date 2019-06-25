@@ -64,16 +64,20 @@ class SpeechGen(keras.utils.Sequence):
         for i in range(len(list_IDs_temp)):
             
             #load data from file, saved as numpy array on disk
-            #print(i)
-            #print(list_IDs_temp[i])
-            #print(self.labels[indexes[i]])
+            print(i)
+            print(list_IDs_temp[i])
+            print(self.labels[indexes[i]])
             if(list_IDs_temp[i].endswith('np')):
+                print("case 0")
                 list_IDs_temp[i] = list_IDs_temp[i] + 'y'
             elif(list_IDs_temp[i].endswith('n')):
+                print("case 1")
                 list_IDs_temp[i] = list_IDs_temp[i] + 'py'
             elif(list_IDs_temp[i].endswith('.')):
+                print("case 2")
                 list_IDs_temp[i] = list_IDs_temp[i] + 'npy'
             elif(list_IDs_temp[i].endswith('v')):
+                print("case 3")
                 list_IDs_temp[i] = list_IDs_temp[i] + '.npy'
                 
             curX = np.load(list_IDs_temp[i], allow_pickle=True)

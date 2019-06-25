@@ -61,16 +61,16 @@ def AttentionModel(nCategories, nTime, nMel, use_GRU = False):
     """
     if use_GRU:
         # Two bidirectional GRU layer were the output is the complete sequence 
-        x = Bidirectional(GRU(nMel, return_sequences = True)) (x) # [b_s, seq_len, vec_dim]
-        x = Bidirectional(GRU(nMel, return_sequences = True)) (x) # [b_s, seq_len, vec_dim]
+        x = Bidirectional(GRU(nMel, return_sequences = True, dropout=0.1, recurrent_dropout=0.1)) (x) # [b_s, seq_len, vec_dim]
+        x = Bidirectional(GRU(nMel, return_sequences = True, dropout=0.1, recurrent_dropout=0.1)) (x) # [b_s, seq_len, vec_dim]
     else:
         # Two bidirectional LSTM layer were the output is the complete sequence 
-        x = Bidirectional(LSTM(nMel, return_sequences = True)) (x) # [b_s, seq_len, vec_dim]
-        x = Bidirectional(LSTM(nMel, return_sequences = True)) (x) # [b_s, seq_len, vec_dim]
+        x = Bidirectional(LSTM(nMel, return_sequences = True, dropout=0.1, recurrent_dropout=0.1)) (x) # [b_s, seq_len, vec_dim]
+        x = Bidirectional(LSTM(nMel, return_sequences = True, dropout=0.1, recurrent_dropout=0.1)) (x) # [b_s, seq_len, vec_dim]
     
     # Attention layer computed by hand
     xFirst = Lambda(lambda q: q[:, int(nTime/2)]) (x)   #[b_s, vec_dim] take the central element of the sequence
-    query = Dense(nMel*2) (xFirst)                      # Project the element to a dense layer, this allows the network to learn 
+    query = Dense(nMel*2, activation = 'relu') (xFirst) # Project the element to a dense layer, this allows the network to learn 
 
     #dot product attention
     attScores = Dot(axes=[1,2])([query, x]) 
@@ -84,7 +84,8 @@ def AttentionModel(nCategories, nTime, nMel, use_GRU = False):
 
     # Two dense layer 
     x = Dense(64, activation = 'relu')(attVector)
-    x = Dense(32)(x)
+    x = Dropout(0.1) (x)
+    x = Dense(32, activation = 'relu')(x)
 
     output = Dense(nCategories, activation = 'softmax', name='output')(x)
     
