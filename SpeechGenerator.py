@@ -44,7 +44,7 @@ class SpeechGen(keras.utils.Sequence):
         list_IDs_temp = [self.list_IDs[k] for k in indexes]
 
         # Generate data
-        X, y = self.__data_generation(list_IDs_temp)
+        X, y = self.__data_generation(list_IDs_temp, indexes)
 
         return X, y
 
@@ -54,17 +54,29 @@ class SpeechGen(keras.utils.Sequence):
         if self.shuffle == True:
             np.random.shuffle(self.indexes)
 
-    def __data_generation(self, list_IDs_temp):
+    def __data_generation(self, list_IDs_temp, indexes):
         'Generates data containing batch_size samples' # X : (n_samples, *dim, n_channels)
         # Initialization
         X = np.empty((self.batch_size, self.dim))
         y = np.empty((self.batch_size), dtype=int)
-        
+        # 
         # Generate data
-        for i, ID in enumerate(list_IDs_temp):
+        for i in range(len(list_IDs_temp)):
             
             #load data from file, saved as numpy array on disk
-            curX = np.load(ID, allow_pickle=True)
+            #print(i)
+            #print(list_IDs_temp[i])
+            #print(self.labels[indexes[i]])
+            if(list_IDs_temp[i].endswith('np')):
+                list_IDs_temp[i] = list_IDs_temp[i] + 'y'
+            elif(list_IDs_temp[i].endswith('n')):
+                list_IDs_temp[i] = list_IDs_temp[i] + 'py'
+            elif(list_IDs_temp[i].endswith('.')):
+                list_IDs_temp[i] = list_IDs_temp[i] + 'npy'
+            elif(list_IDs_temp[i].endswith('v')):
+                list_IDs_temp[i] = list_IDs_temp[i] + '.npy'
+                
+            curX = np.load(list_IDs_temp[i], allow_pickle=True)
             
             #normalize
             #invMax = 1/(np.max(np.abs(curX))+1e-3)
@@ -85,6 +97,7 @@ class SpeechGen(keras.utils.Sequence):
                 #print('File dim smaller')
             
             # Store class
-            y[i] = self.labels[ID]
+            
+            y[i] = self.labels[indexes[i]]
 
         return X, y
