@@ -21,7 +21,7 @@ import numpy as np
 #print(tf.keras.__version__)
 
 # Model with the attention layer 
-def AttentionModel(nCategories, nTime, nMel, use_GRU = False):
+def AttentionModel(nCategories, nTime, nMel, use_GRU = False, dropout = 0.0, activation = 'relu'):
     
     #inputs = Input((nTime, nMel, 1)) # it's the dimension after the extraction of the mel coefficients
 
@@ -47,9 +47,9 @@ def AttentionModel(nCategories, nTime, nMel, use_GRU = False):
     x = Permute((2,1,3)) (x)
 
     # Two 2D convolutional layer to extract features  
-    x = Conv2D(10, (5,1) , activation='relu', padding='same') (x)
+    x = Conv2D(10, (5,1) , activation=activation, padding='same') (x)
     x = BatchNormalization() (x)
-    x = Conv2D(1, (5,1) , activation='relu', padding='same') (x)
+    x = Conv2D(1, (5,1) , activation=activation, padding='same') (x)
     x = BatchNormalization() (x)
 
     #x = Reshape((125, 80)) (x)
@@ -61,16 +61,16 @@ def AttentionModel(nCategories, nTime, nMel, use_GRU = False):
     """
     if use_GRU:
         # Two bidirectional GRU layer were the output is the complete sequence 
-        x = Bidirectional(GRU(nMel, return_sequences = True, dropout=0.1, recurrent_dropout=0.1)) (x) # [b_s, seq_len, vec_dim]
-        x = Bidirectional(GRU(nMel, return_sequences = True, dropout=0.1, recurrent_dropout=0.1)) (x) # [b_s, seq_len, vec_dim]
+        x = Bidirectional(GRU(nMel, return_sequences = True, dropout=dropout, recurrent_dropout=0.1)) (x) # [b_s, seq_len, vec_dim]
+        x = Bidirectional(GRU(nMel, return_sequences = True, dropout=dropout, recurrent_dropout=0.1)) (x) # [b_s, seq_len, vec_dim]
     else:
         # Two bidirectional LSTM layer were the output is the complete sequence 
-        x = Bidirectional(LSTM(nMel, return_sequences = True, dropout=0.1, recurrent_dropout=0.1)) (x) # [b_s, seq_len, vec_dim]
-        x = Bidirectional(LSTM(nMel, return_sequences = True, dropout=0.1, recurrent_dropout=0.1)) (x) # [b_s, seq_len, vec_dim]
+        x = Bidirectional(LSTM(nMel, return_sequences = True, dropout=dropout, recurrent_dropout=0.1)) (x) # [b_s, seq_len, vec_dim]
+        x = Bidirectional(LSTM(nMel, return_sequences = True, dropout=dropout, recurrent_dropout=0.1)) (x) # [b_s, seq_len, vec_dim]
     
     # Attention layer computed by hand
     xFirst = Lambda(lambda q: q[:, int(nTime/2)]) (x)   #[b_s, vec_dim] take the central element of the sequence
-    query = Dense(nMel*2, activation = 'relu') (xFirst) # Project the element to a dense layer, this allows the network to learn 
+    query = Dense(nMel*2, activation = activation) (xFirst) # Project the element to a dense layer, this allows the network to learn 
 
     #dot product attention
     attScores = Dot(axes=[1,2])([query, x]) 
@@ -83,9 +83,9 @@ def AttentionModel(nCategories, nTime, nMel, use_GRU = False):
     # attVector = Attention()([query, x])
 
     # Two dense layer 
-    x = Dense(64, activation = 'relu')(attVector)
-    x = Dropout(0.1) (x)
-    x = Dense(32, activation = 'relu')(x)
+    x = Dense(64, activation = activation)(attVector)
+    x = Dropout(dropout) (x)
+    x = Dense(32, activation = activation)(x)
 
     output = Dense(nCategories, activation = 'softmax', name='output')(x)
     

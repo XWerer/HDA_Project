@@ -22,11 +22,12 @@ class SpeechGen(keras.utils.Sequence):
     
     Expects list_IDs and labels to be of the same length
     """
-    def __init__(self, list_IDs, labels, batch_size=64, dim=16000, shuffle=True):
+    def __init__(self, list_IDs, labels, root_dir, batch_size = 64, dim = 16000, shuffle = True):
         'Initialization'
         self.dim = dim
         self.batch_size = batch_size
         self.labels = labels
+        self.root_dir = root_dir
         self.list_IDs = list_IDs
         self.shuffle = shuffle
         self.on_epoch_end()
@@ -62,7 +63,7 @@ class SpeechGen(keras.utils.Sequence):
         # 
         # Generate data
         for i in range(len(list_IDs_temp)):
-            
+            """
             #load data from file, saved as numpy array on disk
             print(i)
             print(list_IDs_temp[i])
@@ -79,9 +80,9 @@ class SpeechGen(keras.utils.Sequence):
             elif(list_IDs_temp[i].endswith('v')):
                 print("case 3")
                 list_IDs_temp[i] = list_IDs_temp[i] + '.npy'
-                
-            curX = np.load(list_IDs_temp[i], allow_pickle=True)
-            
+            """   
+            #curX = np.load(list_IDs_temp[i], allow_pickle=True)
+            curX = np.load(self.root_dir + "/" + list_IDs_temp[i])
             #normalize
             #invMax = 1/(np.max(np.abs(curX))+1e-3)
             #curX *= invMax            
