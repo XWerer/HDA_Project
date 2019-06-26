@@ -14,6 +14,7 @@ from keras import optimizers
 #kapre for Mel Coefficient 
 from kapre.time_frequency import Melspectrogram, Spectrogram
 from kapre.utils import Normalization2D
+from keras import regularizers
 
 import numpy as np
 
@@ -61,12 +62,12 @@ def AttentionModel(nCategories, nTime, nMel, use_GRU = False, dropout = 0.0, act
     """
     if use_GRU:
         # Two bidirectional GRU layer were the output is the complete sequence 
-        x = Bidirectional(GRU(nMel, return_sequences = True, dropout=dropout, recurrent_dropout=0.1)) (x) # [b_s, seq_len, vec_dim]
-        x = Bidirectional(GRU(nMel, return_sequences = True, dropout=dropout, recurrent_dropout=0.1)) (x) # [b_s, seq_len, vec_dim]
+        x = Bidirectional(GRU(nMel, return_sequences = True, dropout=dropout, recurrent_dropout=dropout)) (x) # [b_s, seq_len, vec_dim]
+        x = Bidirectional(GRU(nMel, return_sequences = True, dropout=dropout, recurrent_dropout=dropout)) (x) # [b_s, seq_len, vec_dim]
     else:
         # Two bidirectional LSTM layer were the output is the complete sequence 
-        x = Bidirectional(LSTM(nMel, return_sequences = True, dropout=dropout, recurrent_dropout=0.1)) (x) # [b_s, seq_len, vec_dim]
-        x = Bidirectional(LSTM(nMel, return_sequences = True, dropout=dropout, recurrent_dropout=0.1)) (x) # [b_s, seq_len, vec_dim]
+        x = Bidirectional(LSTM(nMel, return_sequences = True, dropout=dropout, recurrent_dropout=dropout)) (x) # [b_s, seq_len, vec_dim]
+        x = Bidirectional(LSTM(nMel, return_sequences = True, dropout=dropout, recurrent_dropout=dropout)) (x) # [b_s, seq_len, vec_dim]
     
     # Attention layer computed by hand
     xFirst = Lambda(lambda q: q[:, int(nTime/2)]) (x)   #[b_s, vec_dim] take the central element of the sequence
@@ -83,7 +84,9 @@ def AttentionModel(nCategories, nTime, nMel, use_GRU = False, dropout = 0.0, act
     # attVector = Attention()([query, x])
 
     # Two dense layer 
-    x = Dense(64, activation = activation)(attVector)
+    x = Dense(64, activation = activation, 
+              kernel_regularizer = regularizers.l2(0.01),
+              activity_regularizer = regularizers.l1(0.01))(attVector)
     x = Dropout(dropout) (x)
     x = Dense(32, activation = activation)(x)
 
