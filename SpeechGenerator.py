@@ -59,7 +59,8 @@ class SpeechGen(keras.utils.Sequence):
         'Generates data containing batch_size samples' # X : (n_samples, *dim, n_channels)
         # Initialization
         X = np.empty((self.batch_size, self.dim))
-        y = np.empty((self.batch_size), dtype=int)
+        y = np.zeros((self.batch_size, np.max(self.labels) + 1))
+        #y = np.empty((self.batch_size), dtype=int)
         # 
         # Generate data
         for i in range(len(list_IDs_temp)):
@@ -103,6 +104,7 @@ class SpeechGen(keras.utils.Sequence):
             
             # Store class
             
-            y[i] = self.labels[indexes[i]]
+            #y[i] = self.labels[indexes[i]]
+            y[i, self.labels[indexes[i]]] = 1 
 
         return X, y

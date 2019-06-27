@@ -4,7 +4,7 @@ import tensorflow as tf
 from keras.models import Model, load_model
 
 from keras.layers import Input, Activation, Concatenate, Permute, Reshape, Flatten, Lambda, Dot, Softmax
-from keras.layers import Add, Dropout, BatchNormalization, Conv2D, Conv2DTranspose, MaxPooling2D, Dense, Bidirectional, LSTM, GRU
+from keras.layers import Add, Dropout, BatchNormalization, Conv2D, Conv2DTranspose, MaxPooling2D, Dense, Bidirectional, LSTM, GRU, CuDNNLSTM
 #from keras.layers import Attention, CuDNNLSTM
 from keras import backend as K
 from keras.utils import to_categorical
@@ -20,6 +20,52 @@ import numpy as np
 
 #print(tf.__version__)
 #print(tf.keras.__version__)
+
+# Model with the attention layer 
+def SimpleModel(nCategories, nTime, nMel, use_GRU = False, dropout = 0.0, activation = 'relu'):
+    
+    #inputs = Input((nTime, nMel, 1)) # it's the dimension after the extraction of the mel coefficients
+
+    inputs = Input((16000,))
+
+    """ We need to drop out this part and compute by hand the mel coefficient
+        because this part user keras without tensorflow and there is a bug that
+        create problem """
+    x = Reshape((1, -1)) (inputs)
+
+    x = Melspectrogram(n_dft=1024, n_hop=128, input_shape=(1, 16000),
+                             padding='same', sr=16000, n_mels=80,
+                             fmin=40.0, fmax=16000/2, power_melgram=1.0,
+                             return_decibel_melgram=True, trainable_fb=False,
+                             trainable_kernel=False,
+                             name='mel_stft') (x)
+
+    x = Normalization2D(int_axis=0)(x)
+    """
+    #note that Melspectrogram puts the sequence in shape (batch_size, melDim, timeSteps, 1)
+    #we would rather have it the other way around for LSTMs
+    """
+    x = Permute((2,1,3)) (x)
+
+    # Two 2D convolutional layer to extract features  
+    x = Conv2D(64, (5,5) , activation=activation) (x)
+    x = MaxPooling2D((3, 3)) (x)
+    x = BatchNormalization() (x)
+    x = Conv2D(32, (3,3) , activation=activation) (x)
+    x = MaxPooling2D((3, 3)) (x)
+    x = BatchNormalization() (x)
+
+    x = Flatten() (x)
+    x = Dropout(dropout) (x)
+    # Two dense layer 
+    x = Dense(128, activation = activation)(x)
+    
+    output = Dense(nCategories, activation = 'softmax', name='output')(x)
+    
+    model = Model(inputs=[inputs], outputs=[output])
+    
+    return model
+
 
 # Model with the attention layer 
 def AttentionModel(nCategories, nTime, nMel, use_GRU = False, dropout = 0.0, activation = 'relu'):
@@ -50,7 +96,7 @@ def AttentionModel(nCategories, nTime, nMel, use_GRU = False, dropout = 0.0, act
     # Two 2D convolutional layer to extract features  
     x = Conv2D(10, (5,1) , activation=activation, padding='same') (x)
     x = BatchNormalization() (x)
-    x = Conv2D(1, (5,1) , activation=activation, padding='same') (x)
+    x = Conv2D(1, (3,1) , activation=activation, padding='same') (x)
     x = BatchNormalization() (x)
 
     #x = Reshape((125, 80)) (x)
@@ -84,11 +130,15 @@ def AttentionModel(nCategories, nTime, nMel, use_GRU = False, dropout = 0.0, act
     # attVector = Attention()([query, x])
 
     # Two dense layer 
-    x = Dense(64, activation = activation, 
-              kernel_regularizer = regularizers.l2(0.01),
-              activity_regularizer = regularizers.l1(0.01))(attVector)
+    x = Dense(64, activation = activation)(attVector)
     x = Dropout(dropout) (x)
     x = Dense(32, activation = activation)(x)
+    
+    # Normalizzation to prevent nan 
+    #x = BatchNormalization() (x)
+    
+    # subrract the max to avoid nan
+    #x = Lambda(lambda q: q - K.max(q), name='subtract_max') (x)
 
     output = Dense(nCategories, activation = 'softmax', name='output')(x)
     
