@@ -13,9 +13,9 @@ from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint, LearningR
 from tensorflow.keras import optimizers
 
 #kapre for Mel Coefficient 
-from kapre.time_frequency import Melspectrogram, Spectrogram
-from kapre.utils import Normalization2D
-from keras import regularizers
+#from kapre.time_frequency import Melspectrogram, Spectrogram
+#from kapre.utils import Normalization2D
+#from keras import regularizers
 
 import numpy as np
 

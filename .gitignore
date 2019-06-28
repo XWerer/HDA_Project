@@ -7,3 +7,6 @@ Weight_test/
 train.npy
 train_cache*
 *.pyc
+small_*
+test_*
+val_*
