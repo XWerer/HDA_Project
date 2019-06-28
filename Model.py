@@ -1,15 +1,16 @@
 # TensorFlow and tf.keras
 import tensorflow as tf
 #from tensorflow import keras
-from keras.models import Model, load_model
+from tensorflow.keras.models import Model, load_model
 
-from keras.layers import Input, Activation, Concatenate, Permute, Reshape, Flatten, Lambda, Dot, Softmax
-from keras.layers import Add, Dropout, BatchNormalization, Conv2D, Conv2DTranspose, MaxPooling2D, Dense, Bidirectional, LSTM, GRU, CuDNNLSTM
+from tensorflow.keras.layers import Input, Activation, Concatenate, Permute, Reshape, Flatten, Lambda, Dot, Softmax
+from tensorflow.keras.layers import Add, Dropout, BatchNormalization, Conv2D, Conv2DTranspose, MaxPooling2D
+from tensorflow.keras.layers import Dense, Bidirectional, LSTM, GRU
 #from keras.layers import Attention, CuDNNLSTM
-from keras import backend as K
-from keras.utils import to_categorical
-from keras.callbacks import EarlyStopping, ModelCheckpoint, LearningRateScheduler
-from keras import optimizers
+from tensorflow.keras import backend as K
+from tensorflow.keras.utils import to_categorical
+from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint, LearningRateScheduler
+from tensorflow.keras import optimizers
 
 #kapre for Mel Coefficient 
 from kapre.time_frequency import Melspectrogram, Spectrogram
@@ -24,13 +25,13 @@ import numpy as np
 # Model with the attention layer 
 def SimpleModel(nCategories, nTime, nMel, use_GRU = False, dropout = 0.0, activation = 'relu'):
     
-    #inputs = Input((nTime, nMel, 1)) # it's the dimension after the extraction of the mel coefficients
+    inputs = Input((nTime, nMel, 1)) # it's the dimension after the extraction of the mel coefficients
 
-    inputs = Input((16000,))
+    #inputs = Input((16000,))
 
     """ We need to drop out this part and compute by hand the mel coefficient
         because this part user keras without tensorflow and there is a bug that
-        create problem """
+        create problem 
     x = Reshape((1, -1)) (inputs)
 
     x = Melspectrogram(n_dft=1024, n_hop=128, input_shape=(1, 16000),
@@ -41,14 +42,14 @@ def SimpleModel(nCategories, nTime, nMel, use_GRU = False, dropout = 0.0, activa
                              name='mel_stft') (x)
 
     x = Normalization2D(int_axis=0)(x)
-    """
+    
     #note that Melspectrogram puts the sequence in shape (batch_size, melDim, timeSteps, 1)
     #we would rather have it the other way around for LSTMs
     """
-    x = Permute((2,1,3)) (x)
+    #x = Permute((2,1,3)) (x)
 
     # Two 2D convolutional layer to extract features  
-    x = Conv2D(64, (5,5) , activation=activation) (x)
+    x = Conv2D(64, (5,5) , activation=activation) (inputs) 
     x = MaxPooling2D((3, 3)) (x)
     x = BatchNormalization() (x)
     x = Conv2D(32, (3,3) , activation=activation) (x)
