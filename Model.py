@@ -69,15 +69,15 @@ def SimpleModel(nCategories, nTime, nMel, use_GRU = False, dropout = 0.0, activa
 
 
 # Model with the attention layer 
-def AttentionModel(nCategories, nTime, nMel, use_GRU = False, dropout = 0.0, activation = 'relu'):
+def AttentionModel(nCategories, nTime, nMel, use_GRU = True, dropout = 0.0, activation = 'relu'):
     
-    #inputs = Input((nTime, nMel, 1)) # it's the dimension after the extraction of the mel coefficients
+    inputs = Input((nTime, nMel, 1)) # it's the dimension after the extraction of the mel coefficients
 
-    inputs = Input((16000,))
+    #inputs = Input((16000,))
 
     """ We need to drop out this part and compute by hand the mel coefficient
         because this part user keras without tensorflow and there is a bug that
-        create problem """
+        create problem 
     x = Reshape((1, -1)) (inputs)
 
     x = Melspectrogram(n_dft=1024, n_hop=128, input_shape=(1, 16000),
@@ -88,17 +88,17 @@ def AttentionModel(nCategories, nTime, nMel, use_GRU = False, dropout = 0.0, act
                              name='mel_stft') (x)
 
     x = Normalization2D(int_axis=0)(x)
-    """
+    
     #note that Melspectrogram puts the sequence in shape (batch_size, melDim, timeSteps, 1)
     #we would rather have it the other way around for LSTMs
     """
-    x = Permute((2,1,3)) (x)
+    #x = Permute((2,1,3)) (x)
 
     # Two 2D convolutional layer to extract features  
-    x = Conv2D(10, (5,1) , activation=activation, padding='same') (x)
-    x = BatchNormalization() (x)
+    x = Conv2D(10, (5,1) , activation=activation, padding='same') (inputs)
+    x = BatchNormalization(trainable = False) (x)
     x = Conv2D(1, (3,1) , activation=activation, padding='same') (x)
-    x = BatchNormalization() (x)
+    x = BatchNormalization(trainable = False) (x)
 
     #x = Reshape((125, 80)) (x)
     x = Lambda(lambda q: K.squeeze(q, -1), name='squeeze_last_dim') (x) #keras.backend.squeeze(x, axis)
