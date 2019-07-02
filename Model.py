@@ -69,7 +69,7 @@ def SimpleModel(nCategories, nTime, nMel, use_GRU = False, dropout = 0.0, activa
 
 
 # Model with the attention layer 
-def AttentionModel(nCategories, nTime, nMel, use_GRU = True, dropout = 0.0, activation = 'relu'):
+def AttentionModel(nCategories, nTime, nMel, unit, use_GRU = True, dropout = 0.0, activation = 'relu'):
     
     inputs = Input((nTime, nMel, 1)) # it's the dimension after the extraction of the mel coefficients
 
@@ -95,9 +95,13 @@ def AttentionModel(nCategories, nTime, nMel, use_GRU = True, dropout = 0.0, acti
     #x = Permute((2,1,3)) (x)
 
     # Two 2D convolutional layer to extract features  
-    x = Conv2D(10, (5,1) , activation=activation, padding='same') (inputs)
+    x = Conv2D(10, (5,1) , activation=activation, padding='same',
+               kernel_regularizer = tf.keras.regularizers.l2(0.001), 
+               bias_regularizer = tf.keras.regularizers.l2(0.001)) (inputs)
     x = BatchNormalization(trainable = False) (x)
-    x = Conv2D(1, (3,1) , activation=activation, padding='same') (x)
+    x = Conv2D(1, (3,1) , activation=activation, padding='same', 
+               kernel_regularizer = tf.keras.regularizers.l2(0.001), 
+               bias_regularizer = tf.keras.regularizers.l2(0.001)) (x)
     x = BatchNormalization(trainable = False) (x)
 
     #x = Reshape((125, 80)) (x)
@@ -109,16 +113,24 @@ def AttentionModel(nCategories, nTime, nMel, use_GRU = True, dropout = 0.0, acti
     """
     if use_GRU:
         # Two bidirectional GRU layer were the output is the complete sequence 
-        x = Bidirectional(GRU(nMel, return_sequences = True, dropout=dropout, recurrent_dropout=dropout)) (x) # [b_s, seq_len, vec_dim]
-        x = Bidirectional(GRU(nMel, return_sequences = True, dropout=dropout, recurrent_dropout=dropout)) (x) # [b_s, seq_len, vec_dim]
+        x = Bidirectional(GRU(unit, return_sequences = True, 
+                              dropout=dropout, recurrent_dropout=dropout, 
+                              kernel_regularizer = tf.keras.regularizers.l2(0.001), 
+                              activity_regularizer = tf.keras.regularizers.l2(0.001),
+                              bias_regularizer = tf.keras.regularizers.l2(0.001))) (x) # [b_s, seq_len, vec_dim]
+        x = Bidirectional(GRU(unit, return_sequences = True, 
+                              dropout=dropout, recurrent_dropout=dropout, 
+                              kernel_regularizer = tf.keras.regularizers.l2(0.001), 
+                              activity_regularizer = tf.keras.regularizers.l2(0.001),
+                              bias_regularizer = tf.keras.regularizers.l2(0.001))) (x) # [b_s, seq_len, vec_dim]
     else:
         # Two bidirectional LSTM layer were the output is the complete sequence 
-        x = Bidirectional(LSTM(nMel, return_sequences = True, dropout=dropout, recurrent_dropout=dropout)) (x) # [b_s, seq_len, vec_dim]
-        x = Bidirectional(LSTM(nMel, return_sequences = True, dropout=dropout, recurrent_dropout=dropout)) (x) # [b_s, seq_len, vec_dim]
+        x = Bidirectional(LSTM(unit, return_sequences = True, dropout=dropout, recurrent_dropout=dropout)) (x) # [b_s, seq_len, vec_dim]
+        x = Bidirectional(LSTM(unit, return_sequences = True, dropout=dropout, recurrent_dropout=dropout)) (x) # [b_s, seq_len, vec_dim]
     
     # Attention layer computed by hand
     xFirst = Lambda(lambda q: q[:, int(nTime/2)]) (x)   #[b_s, vec_dim] take the central element of the sequence
-    query = Dense(nMel*2, activation = activation) (xFirst) # Project the element to a dense layer, this allows the network to learn 
+    query = Dense(unit*2, activation = activation) (xFirst) # Project the element to a dense layer, this allows the network to learn 
 
     #dot product attention
     attScores = Dot(axes=[1,2])([query, x]) 
@@ -129,18 +141,12 @@ def AttentionModel(nCategories, nTime, nMel, use_GRU = True, dropout = 0.0, acti
 
     # Now use the Attention layer (not find when compile, i don't know why)
     # attVector = Attention()([query, x])
-
+    attVector = Dropout(dropout) (attVector)
     # Two dense layer 
     x = Dense(64, activation = activation)(attVector)
     x = Dropout(dropout) (x)
     x = Dense(32, activation = activation)(x)
-    
-    # Normalizzation to prevent nan 
-    #x = BatchNormalization() (x)
-    
-    # subrract the max to avoid nan
-    #x = Lambda(lambda q: q - K.max(q), name='subtract_max') (x)
-
+    x = Dropout(dropout) (x)
     output = Dense(nCategories, activation = 'softmax', name='output')(x)
     
     model = Model(inputs=[inputs], outputs=[output])

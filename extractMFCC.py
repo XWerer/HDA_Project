@@ -30,10 +30,10 @@ def computeFeatures(wav_signal_name, desiredLength = 16000, log = True, w_len = 
 
     # energy(s)
     E_s = coeffs[:,0]
-    if(min(E_s) < 0.0001):
+    if(min(E_s) < 0.000000001):
         for i in range(E_s.shape[0]):
-            if(E_s[i] < 0.0001):
-                E_s[i] = 1
+            if(E_s[i] < 0.000000001):
+                E_s[i] = 0.000000001
 
     # take the log10 to limit the dynamics
     log_E_s = np.log10(E_s)
@@ -45,10 +45,10 @@ def computeFeatures(wav_signal_name, desiredLength = 16000, log = True, w_len = 
     deltas = sf.base.delta(useful_coeffs, 2)
     #print("deltas = " + str(deltas.shape))
 
-    if(min(delta) < 0.0001):
+    if(min(delta) < 0.000000001):
         for i,l in range(delta.shape[0], delta.shape[1]):
-            if(delta[i,l] < 0.0001):
-                delta[i,l] = 1
+            if(delta[i,l] < 0.000000001):
+                delta[i,l] = 0.000000001
 
     # extracting deltas of deltas
     deltas_2 = sf.base.delta(deltas, 2)
@@ -99,43 +99,43 @@ def computeFeatures1(signal, Fc, log = True, w_len = 0.025, w_step = 0.01):
     useful_coeffs = coeffs[:,1:13] # (taking only the 1,2,...,12 MFCC's)
     # energy(s)
     E_s = coeffs[:,0]
-    if(min(E_s) < 0.0001):
+    if(min(E_s) < 0.000000001):
         for i in range(E_s.shape[0]):
-            if(E_s[i] < 0.0001):
-                E_s[i] = 1
+            if(E_s[i] < 0.000000001):
+                E_s[i] = 0.000000001
 
     # take the log10 to limit the dynamics
     log_E_s = np.log10(E_s)
 
     # extracting deltas
     deltas = sf.base.delta(useful_coeffs, 1)
-    if(np.min(deltas) < 0.0001):
+    if(np.min(deltas) < 0.000000001):
         for i,l in range(deltas.shape[0], deltas.shape[1]):
-            if(deltas[i,l] < 0.0001):
-                deltas[i,l] = 1
+            if(deltas[i,l] < 0.000000001):
+                deltas[i,l] = 0.000000001
 
     # extracting deltas of deltas
     deltas_2 = sf.base.delta(deltas, 1)
-    if(np.min(deltas_2) < 0.0001):
+    if(np.min(deltas_2) < 0.000000001):
         for i,l in range(deltas_2.shape[0], deltas_2.shape[1]):
-            if(deltas_2[i,l] < 0.0001):
-                deltas_2[i,l] = 1
+            if(deltas_2[i,l] < 0.000000001):
+                deltas_2[i,l] = 0.000000001
 
     # getting energies of deltas and of deltas_2
     E_deltas = np.sum(np.power(deltas, 2), axis = 1)
-    if(min(E_deltas) < 0.0001):
+    if(min(E_deltas) < 0.000000001):
         for i in range(E_deltas.shape[0]):
-            if(E_deltas[i] < 0.0001):
-                E_deltas[i] = 1
+            if(E_deltas[i] < 0.000000001):
+                E_deltas[i] = 0.000000001
 
     log_E_deltas = np.log10(E_deltas)
 
     # energy of delta of deltas: 
     E_deltas_2 = np.sum(np.power(deltas_2, 2), axis = 1)
-    if(min(E_deltas_2) < 0.0001):
+    if(min(E_deltas_2) < 0.000000001):
         for i in range(E_deltas_2.shape[0]):
-            if(E_deltas_2[i] < 0.0001):
-                E_deltas_2[i] = 1
+            if(E_deltas_2[i] < 0.000000001):
+                E_deltas_2[i] = 0.000000001
 
     log_E_deltas_2 = np.log10(E_deltas_2)
 
