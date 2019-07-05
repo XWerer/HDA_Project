@@ -278,12 +278,16 @@ def Seq2SeqModel(nCategories, nTime, nMel, units = 64, use_GRU = False, dropout 
     
     # Two convolutional layer to extract feature
     encoder = Conv2D(5, (5,1) , activation='tanh', padding='same', 
-                     kernel_regularizer = tf.keras.regularizers.l2(0.01), 
-                     bias_regularizer = tf.keras.regularizers.l2(0.01)) (encoderInputs)
+                     #kernel_regularizer = tf.keras.regularizers.l2(0.01), 
+                     #bias_regularizer = tf.keras.regularizers.l2(0.01)) (encoderInputs)
+                     kernel_regularizer = None, 
+                     bias_regularizer = None) (encoderInputs)
     encoder = BatchNormalization() (encoder)
     encoder = Conv2D(1, (5,1) , activation='tanh', padding='same', 
-                     kernel_regularizer = tf.keras.regularizers.l2(0.01), 
-                     bias_regularizer = tf.keras.regularizers.l2(0.01)) (encoder)
+                     #kernel_regularizer = tf.keras.regularizers.l2(0.01), 
+                     #bias_regularizer = tf.keras.regularizers.l2(0.01)) (encoder)
+                     kernel_regularizer = None, 
+                     bias_regularizer = None) (encoder)
     encoder = BatchNormalization() (encoder)
 
     encoder = Lambda(lambda q: K.squeeze(q, -1), name='squeeze_last_dim') (encoder) #keras.backend.squeeze(encoder, axis)
@@ -302,10 +306,13 @@ def Seq2SeqModel(nCategories, nTime, nMel, units = 64, use_GRU = False, dropout 
         #encoder_state = [cell, cell]
         # First GRU layer
         encoder_1 = Bidirectional(GRU(units, return_sequences = False, return_state = True,
-                                    dropout=dropout, recurrent_dropout=dropout, 
-                                    kernel_regularizer = tf.keras.regularizers.l2(0.01), 
-                                    activity_regularizer = tf.keras.regularizers.l2(0.01),
-                                    bias_regularizer = tf.keras.regularizers.l2(0.01)))  # [b_s, seq_len, vec_dim]
+                                    dropout=dropout, recurrent_dropout=dropout,
+                                    kernel_regularizer = None, 
+                                    activity_regularizer = None,
+                                    bias_regularizer = None))
+                                    #kernel_regularizer = tf.keras.regularizers.l2(0.01), 
+                                    #activity_regularizer = tf.keras.regularizers.l2(0.01),
+                                    #bias_regularizer = tf.keras.regularizers.l2(0.01)))  # [b_s, seq_len, vec_dim]
         # The bidirectional GRU layer. This layer return the state of the bidirectional GRU. 
         # The output is a 3 tensor:
         #   - gru: last output of the sequence [b_s, vec_dim]
@@ -316,9 +323,9 @@ def Seq2SeqModel(nCategories, nTime, nMel, units = 64, use_GRU = False, dropout 
         gru, forward_h, backward_h = encoder_1(encoder) 
 
         # We discard `gru` and only keep the states.
-        forward_h = Dropout(dropout) (forward_h)
+        #forward_h = Dropout(dropout) (forward_h)
         code_fh = Dense(32, activation='tanh') (forward_h)
-        backward_h = Dropout(dropout) (backward_h)
+        #backward_h = Dropout(dropout) (backward_h)
         code_bh = Dense(32, activation='tanh') (backward_h)
         
         code = [code_fh, code_bh]
@@ -376,9 +383,12 @@ def Seq2SeqModel(nCategories, nTime, nMel, units = 64, use_GRU = False, dropout 
     if use_GRU:
         decoder = Bidirectional(GRU(units, return_sequences = True, return_state = True, 
                                     dropout=dropout, recurrent_dropout=dropout, 
-                                    kernel_regularizer = tf.keras.regularizers.l2(0.01), 
-                                    activity_regularizer = tf.keras.regularizers.l2(0.01),
-                                    bias_regularizer = tf.keras.regularizers.l2(0.01)))
+                                    kernel_regularizer = None, 
+                                    activity_regularizer = None,
+                                    bias_regularizer = None))
+                                    #kernel_regularizer = tf.keras.regularizers.l2(0.01), 
+                                    #activity_regularizer = tf.keras.regularizers.l2(0.01),
+                                    #bias_regularizer = tf.keras.regularizers.l2(0.01)))
         decoderOutputs, _, _ = decoder(decoderInputs, initial_state = decoder_states)
     else:
         decoder = Bidirectional(LSTM(int(nTime/2), return_sequences = True, return_state = True))
@@ -395,7 +405,7 @@ def Seq2SeqModel(nCategories, nTime, nMel, units = 64, use_GRU = False, dropout 
     decoderOutputs = BatchNormalization() (decoderOutputs)
     decoderOutputs = Conv2D(10, (5,1) , activation='tanh', padding='same') (decoderOutputs)
     decoderOutputs = BatchNormalization() (decoderOutputs)
-    decoderOutputs = Conv2D(1, (5,1) , activation='tanh', padding='same', name='output') (decoderOutputs)
+    decoderOutputs = Conv2D(1, (5,1), padding='same', name='output') (decoderOutputs)
     #decoderOutputs = BatchNormalization() (decoderOutputs) 
 
     autoencoder = tf.keras.Model(encoderInputs, decoderOutputs)
