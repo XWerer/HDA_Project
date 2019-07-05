@@ -69,7 +69,7 @@ def addNoise1(signal, noise, start = 0, randomized = False, intensity = 1):
 
     noisy = np.add(signal, additive_noise);
 
-    write("noisy_output.wav", Fc_s, noisy)
+    #write("noisy_output.wav", Fc_s, noisy)
 
     return noisy
 
