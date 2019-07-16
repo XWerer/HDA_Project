@@ -190,7 +190,7 @@ class DataGeneration:
         dataset = dataset.repeat()
 
         # Correct input shape for the network
-        dataset = dataset.map(lambda data, label: (tf.expand_dims(data, -1), label))
+        dataset = dataset.map(lambda data, label: (tf.reshape(data, shape=(100, 80, 1)), tf.reshape(label, shape=(1, ))))
 
         # Batch
         dataset = dataset.batch(batch_size = batch_size)
