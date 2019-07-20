@@ -2,7 +2,7 @@
 A generator for create the datasets for the models
                    
 """
-
+import librosa 
 import pandas as pd
 import numpy as np
 import keras
@@ -13,10 +13,12 @@ import os
 import matplotlib
 import matplotlib.pyplot as plt
 from addNoise import addNoise
+import itertools
+from sklearn.metrics import confusion_matrix
 
 class DataGeneration:
     """
-    Generates data for tensorflow
+    Generates data for Keras
     
     """
     def __init__(self, dataset_dir, categories, nCat):
@@ -118,87 +120,6 @@ class DataGeneration:
         print(str(i+1) + '/' + str(len(testWAVs)))
         
         return train, train_labels, val, val_labels, test, test_labels
-        
-    # Function to load numpy array
-    def load_data(dataset_dir, file_name):
-        # Load the wav signal from the .npy file
-        data = np.load(dataset_dir + file_name)
-        return data
-    
-    # Function to preprocess the data 
-    def load_and_preprocess_data(dataset_dir, file_name, noisy = False):
-        # Required by tensorflow (strings are passed as bytes)
-        if type(file_name) is bytes:
-            file_name = file_name.decode()
-            dataset_dir = dataset_dir.decode()
-
-        # Load data
-        data = np.zeros((16000,))
-        d = DataGeneration.load_data(dataset_dir, file_name)
-        data[:d.shape[0]] = d
-        if noisy:
-            noise = load_data('_background_noise_/white_noise.wav.npy', dataset_dir)
-            data = addNoise1(data, noise, intensity = 0.1) 
-        #feats = computeFeatures1(data, 16000)
-        # Normalize
-        #feats -= np.mean(feats, axis=0)
-        #mean = np.mean(feats, axis = 0)
-        #stv = np.std(feats, axis = 0)
-        #diff = np.subtract(feats, mean)
-        #feats = np.divide(diff, stv + 1e-8)
-        #feats = np.divide(feats, np.max(feats))
-        #diff1 = np.subtract(feats, np.amin(feats, axis=0))
-        #print(np.amin(feats, axis=0))
-        #print(np.amax(feats, axis=0))
-        #diff2 = np.subtract(np.amax(feats, axis=0), np.amin(feats, axis=0))
-        #feats = np.divide(diff1, diff2+1e-6)
-        y3 = sf.base.logfbank(data, samplerate = 16000, winlen = 0.016, nfilt=80, nfft = 1024, lowfreq = 40, highfreq = 8000, preemph = 0.95)
-        #y3 = np.transpose(y3)    
-        mean = np.mean(y3, axis=0)
-        #print(mean.shape)
-        stv = np.std(y3, axis=0)
-        #print(stv.shape)
-        diff = np.subtract(y3, mean)
-        #print(diff.shape)
-        y3 = np.divide(diff, stv + 1e-8)
-
-        return y3.astype(np.float32)
-    
-    # new dataset for the classifier 
-    def create_dataset(dataset_dir, file_names, labels, batch_size = 32, shuffle = True, cache_file = None):
-
-        # Create a Dataset object
-        dataset = tf.data.Dataset.from_tensor_slices((file_names, labels))
-
-        # Map the load_and_preprocess_data function
-        py_func = lambda file_name, label: (tf.numpy_function(DataGeneration.load_and_preprocess_data, 
-                                                              [dataset_dir, file_name, False], 
-                                                              tf.float32), 
-                                            label)
-        
-        dataset = dataset.map(py_func, num_parallel_calls = os.cpu_count())
-
-        # Cache dataset
-        if cache_file:
-            dataset = dataset.cache(cache_file)
-
-        # Shuffle    
-        if shuffle:
-            dataset = dataset.shuffle(len(file_names), reshuffle_each_iteration = True)
-
-        # Repeat the dataset indefinitely
-        dataset = dataset.repeat()
-
-        # Correct input shape for the network
-        dataset = dataset.map(lambda data, label: ((tf.expand_dims(data, -1), label)))
-
-        # Batch
-        dataset = dataset.batch(batch_size = batch_size)
-
-        # Prefetch (1 means that prefetch a batch at time)
-        dataset = dataset.prefetch(buffer_size = 1)
-
-        return dataset
     
     def addNoise(wav_signal_name, wav_noise_name, outputName = "noisy_output.wav", start = 0, randomized = False, intensity = 1, toWrite = False):
         # adds noise to a signal
@@ -295,46 +216,121 @@ class DataGeneration:
             #signal_full[tmpLength:desiredLength] = noise
 
         return signal_full
+        
+    # Function to load numpy array
+    def load_data(dataset_dir, file_name):
+        # Load the wav signal from the .npy file
+        data = np.load(dataset_dir + file_name)
+        return data
+    
+    # Function to preprocess the data 
+    def load_and_preprocess_data(dataset_dir, file_name, noisy = False):
+        # Required by tensorflow (strings are passed as bytes)
+        if type(file_name) is bytes:
+            file_name = file_name.decode()
+            dataset_dir = dataset_dir.decode()
 
-"""
-#Prova classe
-# Root folder of the dataset
-dataset_dir = "Dataset/"
-val_file = 'validation_list.txt'
-test_file = 'testing_list.txt'
+        # Load data
+        data = np.zeros((16000,))
+        d = DataGeneration.load_data(dataset_dir, file_name)
+        data[:d.shape[0]] = d
+        if noisy:
+            noise = load_data('_background_noise_/white_noise.wav.npy', dataset_dir)
+            data = addNoise1(data, noise, intensity = 0.1) 
+        #feats = computeFeatures1(data, 16000)
+        # Normalize
+        #feats -= np.mean(feats, axis=0)
+        #mean = np.mean(feats, axis = 0)
+        #stv = np.std(feats, axis = 0)
+        #diff = np.subtract(feats, mean)
+        #feats = np.divide(diff, stv + 1e-8)
+        #feats = np.divide(feats, np.max(feats))
+        #diff1 = np.subtract(feats, np.amin(feats, axis=0))
+        #print(np.amin(feats, axis=0))
+        #print(np.amax(feats, axis=0))
+        #diff2 = np.subtract(np.amax(feats, axis=0), np.amin(feats, axis=0))
+        #feats = np.divide(diff1, diff2+1e-6)
+        y3 = sf.base.logfbank(data, samplerate = 16000, winlen = 0.016, nfilt=80, nfft = 1024, lowfreq = 40, highfreq = 8000, preemph = 0.95)
+        #y3 = np.transpose(y3)    
+        mean = np.mean(y3, axis=0)
+        #print(mean.shape)
+        stv = np.std(y3, axis=0)
+        #print(stv.shape)
+        diff = np.subtract(y3, mean)
+        #print(diff.shape)
+        y3 = np.divide(diff, stv + 1e-8)
 
-# Dictionary containing the mapping between category name and label
-DictCategs = {'nine' : 1, 'yes' : 2, 'no' : 3, 'up' : 4, 'down' : 5, 'left' : 6, 'right' : 7, 'on' : 8, 'off' : 9, 
-              'stop' : 10, 'go' : 11, 'zero' : 12, 'one' : 13, 'two' : 14, 'three' : 15, 'four' : 16, 'five' : 17, 
-              'six' : 18, 'seven' : 19, 'eight' : 20, 'backward':21, 'bed':22, 'bird':23, 'cat':24, 'dog':25, 'follow':26, 
-              'forward':27, 'happy':28, 'house':29, 'learn':30, 'marvin':31, 'sheila':32, 'tree':33, 'visual':34, 'wow':0,
-              '_background_noise_':0 }
-nCategs = 35
+        return y3.astype(np.float32)
+    
+    # new dataset for the classifier 
+    def create_dataset(dataset_dir, file_names, labels, batch_size = 32, shuffle = True, cache_file = None):
 
-data = DataGeneration(dataset_dir, DictCategs, nCategs)
-train, trainLabels, val, valLabels, test, testLabels = data.create_data(test_file, val_file)
+        # Create a Dataset object
+        dataset = tf.data.Dataset.from_tensor_slices((file_names, labels))
 
-index = 124
-# Plot a wav
-file_name = train[index]
-wav = DataGeneration.load_data(file_name)
+        # Map the load_and_preprocess_data function
+        py_func = lambda file_name, label: (tf.numpy_function(DataGeneration.load_and_preprocess_data, 
+                                                              [dataset_dir, file_name, False], 
+                                                              tf.float32), 
+                                            label)
+        
+        dataset = dataset.map(py_func, num_parallel_calls = os.cpu_count())
 
-# example:
-feats = DataGeneration.load_and_preprocess_data(train[index], False)
+        # Cache dataset
+        if cache_file:
+            dataset = dataset.cache(cache_file)
 
-batch_size = 256
+        # Shuffle    
+        if shuffle:
+            dataset = dataset.shuffle(len(file_names), reshuffle_each_iteration = True)
 
-train_dataset = DataGeneration.create_dataset(train, trainLabels, batch_size = batch_size, shuffle = True, cache_file = 'train_prova_classe')
+        # Repeat the dataset indefinitely
+        dataset = dataset.repeat()
 
-val_dataset = DataGeneration.create_dataset(val, valLabels, batch_size = batch_size, shuffle = False, cache_file = 'val_prova_classe')
+        # Correct input shape for the network
+        dataset = dataset.map(lambda data, label: ((tf.expand_dims(data, -1), label)))
 
-test_dataset = DataGeneration.create_dataset(test, testLabels, batch_size = batch_size, shuffle = False, cache_file = 'test_prova_classe')
+        # Batch
+        dataset = dataset.batch(batch_size = batch_size)
 
-train_steps = int(np.ceil(len(train) / batch_size))
-val_steps = int(np.ceil(len(val) / batch_size))
-test_steps = int(np.ceil(len(test) / batch_size))
+        # Prefetch (1 means that prefetch a batch at time)
+        dataset = dataset.prefetch(buffer_size = 1)
 
-print("steps to completa a train epoch: " + str(train_steps))
-print("steps to completa a validation spoch: " + str(val_steps))
-print("steps to completa a test epoch: " + str(test_steps))
-"""
+        return dataset
+    
+    def plot_confusion_matrix(cm, classes,
+                              normalize=False,
+                              title='Confusion matrix',
+                              cmap=plt.cm.Blues, 
+                              filename = 'cm.png'):
+        """
+        This function prints and plots the confusion matrix.
+        Normalization can be applied by setting `normalize=True`.
+        """
+        if normalize:
+            cm = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
+            print("Normalized confusion matrix")
+        else:
+            print('Confusion matrix, without normalization')
+
+        #print(cm)
+
+        plt.figure(figsize=(25,25))
+        plt.imshow(cm, interpolation='nearest', cmap=cmap)
+        plt.title(title, fontsize=30)
+        plt.colorbar()
+        tick_marks = np.arange(len(classes))
+        plt.xticks(tick_marks, classes, rotation=45, fontsize=15)
+        plt.yticks(tick_marks, classes, fontsize=15)
+
+        fmt = '.3f' if normalize else 'd'
+        thresh = cm.max() / 2.
+        for i, j in itertools.product(range(cm.shape[0]), range(cm.shape[1])):
+            plt.text(j, i, format(cm[i, j], fmt), size=11,
+                     horizontalalignment="center",
+                     color="white" if cm[i, j] > thresh else "black")
+
+        plt.ylabel('True label', fontsize=30)
+        plt.xlabel('Predicted label', fontsize=30)
+        plt.savefig(filename, dpi = 400)
+        plt.tight_layout()
