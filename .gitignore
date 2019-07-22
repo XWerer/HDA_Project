@@ -10,3 +10,8 @@ train_cache*
 small_*
 test_*
 val_*
+*.h5
+*.index 
+train*
+test*
+val*

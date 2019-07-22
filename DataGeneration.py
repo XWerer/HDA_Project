@@ -15,6 +15,7 @@ import matplotlib.pyplot as plt
 from addNoise import addNoise
 import itertools
 from sklearn.metrics import confusion_matrix
+import random
 
 class DataGeneration:
     """
@@ -47,6 +48,7 @@ class DataGeneration:
         for root, dirs, files in os.walk(self.dataset_dir):
             for f in files:
                 if (root != self.dataset_dir + "_background_noise_") and (f.endswith('.wav')):
+                #if (f.endswith('.wav')):
                     path = root + "/" + f
                     #print(path)
                     path = path[len(self.dataset_dir):]
@@ -219,6 +221,12 @@ class DataGeneration:
         
     # Function to load numpy array
     def load_data(dataset_dir, file_name):
+        # Required by tensorflow (strings are passed as bytes)
+        if type(file_name) is bytes:
+            file_name = file_name.decode()
+        if type(dataset_dir) is bytes:
+            dataset_dir = dataset_dir.decode()
+            
         # Load the wav signal from the .npy file
         data = np.load(dataset_dir + file_name)
         return data
@@ -237,19 +245,41 @@ class DataGeneration:
         if noisy:
             noise = load_data('_background_noise_/white_noise.wav.npy', dataset_dir)
             data = addNoise1(data, noise, intensity = 0.1) 
-        #feats = computeFeatures1(data, 16000)
-        # Normalize
-        #feats -= np.mean(feats, axis=0)
-        #mean = np.mean(feats, axis = 0)
-        #stv = np.std(feats, axis = 0)
-        #diff = np.subtract(feats, mean)
-        #feats = np.divide(diff, stv + 1e-8)
-        #feats = np.divide(feats, np.max(feats))
-        #diff1 = np.subtract(feats, np.amin(feats, axis=0))
-        #print(np.amin(feats, axis=0))
-        #print(np.amax(feats, axis=0))
-        #diff2 = np.subtract(np.amax(feats, axis=0), np.amin(feats, axis=0))
-        #feats = np.divide(diff1, diff2+1e-6)
+
+        y3 = sf.base.logfbank(data, samplerate = 16000, winlen = 0.016, nfilt=80, nfft = 1024, lowfreq = 40, highfreq = 8000, preemph = 0.95)
+        #y3 = np.transpose(y3)    
+        mean = np.mean(y3, axis=0)
+        #print(mean.shape)
+        stv = np.std(y3, axis=0)
+        #print(stv.shape)
+        diff = np.subtract(y3, mean)
+        #print(diff.shape)
+        y3 = np.divide(diff, stv + 1e-8)
+
+        return y3.astype(np.float32)
+    
+    def preprocesing_noisy(signal, dataset_dir):
+        #padding part
+        data = np.zeros((16000,))
+        data[:signal.shape[0]] = signal
+        
+        #noising part (randomized)
+        r = random.randint(0, 5)
+        if(r == 0):
+            noise = DataGeneration.load_data(dataset_dir, '_background_noise_/doing_the_dishes.wav.npy')
+        if(r == 1):
+            noise = DataGeneration.load_data(dataset_dir, '_background_noise_/dude_miaowing.wav.npy')
+        if(r == 2):
+            noise = DataGeneration.load_data(dataset_dir, '_background_noise_/exercise_bike.wav.npy')
+        if(r == 3):
+            noise = DataGeneration.load_data(dataset_dir, '_background_noise_/pink_noise.wav.npy')
+        if(r == 4):
+            noise = DataGeneration.load_data(dataset_dir, '_background_noise_/running_tap.wav.npy')
+        if(r == 5):
+            noise = DataGeneration.load_data(dataset_dir, '_background_noise_/white_noise.wav.npy')
+           
+        #compute features
+        data = DataGeneration.addNoise1(data, noise, randomized = True, intensity = 0.1)
         y3 = sf.base.logfbank(data, samplerate = 16000, winlen = 0.016, nfilt=80, nfft = 1024, lowfreq = 40, highfreq = 8000, preemph = 0.95)
         #y3 = np.transpose(y3)    
         mean = np.mean(y3, axis=0)
@@ -297,6 +327,50 @@ class DataGeneration:
         dataset = dataset.prefetch(buffer_size = 1)
 
         return dataset
+    
+    # new dataset for the classifier 
+    def create_dataset_noisy(dataset_dir, file_names, labels, batch_size = 32, shuffle = True, cache_file = None):
+
+        # Create a Dataset object
+        dataset = tf.data.Dataset.from_tensor_slices((file_names, labels))
+
+        # Map the load_and_preprocess_data function
+        py_func = lambda file_name, label: (tf.numpy_function(DataGeneration.load_data, 
+                                                              [dataset_dir, file_name], 
+                                                              tf.float32), 
+                                            label)
+        
+        dataset = dataset.map(py_func, num_parallel_calls = os.cpu_count())
+
+        # Cache dataset
+        if cache_file:
+            dataset = dataset.cache(cache_file)
+
+        # Shuffle    
+        if shuffle:
+            dataset = dataset.shuffle(len(file_names), reshuffle_each_iteration = True)
+            
+        # add noise
+        py_func = lambda signal, label: (tf.numpy_function(DataGeneration.preprocesing_noisy, 
+                                                              [signal, dataset_dir], tf.float32), 
+                                            label)
+        
+        dataset = dataset.map(py_func, num_parallel_calls = os.cpu_count())
+
+        # Repeat the dataset indefinitely
+        dataset = dataset.repeat()
+
+        # Correct input shape for the network
+        dataset = dataset.map(lambda data, label: ((tf.expand_dims(data, -1), label)))
+
+        # Batch
+        dataset = dataset.batch(batch_size = batch_size)
+
+        # Prefetch (1 means that prefetch a batch at time)
+        dataset = dataset.prefetch(buffer_size = 1)
+
+        return dataset
+    
     
     def plot_confusion_matrix(cm, classes,
                               normalize=False,
