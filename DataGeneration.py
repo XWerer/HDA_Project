@@ -6,13 +6,12 @@ import librosa
 import pandas as pd
 import numpy as np
 import keras
-from extractMFCC import computeFeatures1
+#from extractMFCC import computeFeatures1
 import python_speech_features as sf
 import tensorflow as tf
 import os
 import matplotlib
 import matplotlib.pyplot as plt
-from addNoise import addNoise
 import itertools
 from sklearn.metrics import confusion_matrix
 import random

@@ -1,17 +1,7 @@
 Dataset/
 .ipynb_checkpoints/
 __pycache__/
-prova.h5
-provaS2S.h5
-Weight_test/
-train.npy
-train_cache*
 *.pyc
-small_*
-test_*
-val_*
-*.h5
-*.index 
 train*
 test*
 val*
