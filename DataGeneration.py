@@ -388,13 +388,13 @@ class DataGeneration:
 
         #print(cm)
 
-        plt.figure(figsize=(25,25))
+        plt.figure(figsize=(22, 22))
         plt.imshow(cm, interpolation='nearest', cmap=cmap)
-        plt.title(title, fontsize=30)
+        plt.title(title, fontsize=20)
         plt.colorbar()
         tick_marks = np.arange(len(classes))
-        plt.xticks(tick_marks, classes, rotation=45, fontsize=15)
-        plt.yticks(tick_marks, classes, fontsize=15)
+        plt.xticks(tick_marks, classes, rotation=45, fontsize=7)
+        plt.yticks(tick_marks, classes, fontsize=7)
 
         fmt = '.3f' if normalize else 'd'
         thresh = cm.max() / 2.
@@ -403,7 +403,7 @@ class DataGeneration:
                      horizontalalignment="center",
                      color="white" if cm[i, j] > thresh else "black")
 
-        plt.ylabel('True label', fontsize=30)
-        plt.xlabel('Predicted label', fontsize=30)
+        plt.ylabel('True label', fontsize=18)
+        plt.xlabel('Predicted label', fontsize=18)
         plt.savefig(filename, dpi = 400)
         plt.tight_layout()
